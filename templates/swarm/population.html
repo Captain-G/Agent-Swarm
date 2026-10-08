@@ -1,0 +1,104 @@
+{% extends "projects/workspace.html" %}
+{% load static baraza %}
+{% block title %}Population · {{ project.title }}{% endblock %}
+{% block head %}<script defer src="{% static 'vendor/chart-4.5.1.umd.min.js' %}"></script>{% endblock %}
+{% block workspace %}
+<div class="page-head">
+  <div class="stack-sm">
+    <p class="eyebrow">Step 4 · Population</p>
+    <h1>The synthetic public</h1>
+    <p class="muted mb-0">Citizens sampled from {{ country.name }}'s demographics, each with a personality, a starting opinion and social ties. Plus institutions, media and (optionally) coordinated accounts.</p>
+  </div>
+  {% if total %}<a class="btn btn-primary" href="{% url 'swarm:runs' project.pk %}">{% icon "arrow-right" %}Next: simulate</a>{% endif %}
+</div>
+
+{% if job %}{% include "core/partials/job_status.html" with job=job %}{% endif %}
+
+<details class="disclosure" {% if not total %}open{% endif %}>
+  <summary>{% icon "users" %}{% if total %}Regenerate the population{% else %}Create the population{% endif %}</summary>
+  <form method="post" action="{% url 'swarm:generate_population' project.pk %}" class="disclosure-body stack" x-data="{ bots: 0 }">
+    {% csrf_token %}
+    {% if has_runs %}<div class="alert alert-warning">{% icon "triangle-alert" %}<p>Regenerating deletes this project's existing simulation runs (they belong to the old population).</p></div>{% endif %}
+    <div class="grid-3">
+      <div class="field"><label for="size">Number of people</label><input id="size" type="number" name="size" min="20" max="2000" value="{% if project.depth == 'quick' %}80{% elif project.depth == 'deep' %}300{% else %}160{% endif %}"><p class="help">150-300 is a good balance. More people means slower AI-written runs, but dynamics-only runs scale to thousands.</p></div>
+      <div class="field"><label for="focus">Focus regions <span class="muted">(optional)</span></label><input id="focus" name="focus_regions" list="regions" value="{{ project.focus_regions|join:', ' }}" placeholder="e.g. Nairobi, Kisumu"><datalist id="regions">{% for r in country.regions %}<option value="{{ r.name }}">{% endfor %}</datalist><p class="help">Oversamples these {{ country.region_label|lower }}s.</p></div>
+      <div class="field"><label for="llm_bios">AI-written personas</label><input id="llm_bios" type="number" name="llm_bios" min="0" max="300" value="24"><p class="help">Richest personas for the most visible agents; others use templates.</p></div>
+    </div>
+    <div class="grid-3">
+      <label class="check"><input type="checkbox" name="include_institutions" checked><span><strong>Include institutions</strong><span class="help">Government bodies, unions, parties and media from the research become accounts.</span></span></label>
+      <label class="check"><input type="checkbox" name="calibrate" checked><span><strong>Calibrate to real posts</strong><span class="help">Shift starting opinions toward the stance seen in collected public posts (needs 15+ labelled posts).</span></span></label>
+      <div class="field"><label for="calibration_weight">Calibration strength</label><div class="range-row"><input id="calibration_weight" type="range" name="calibration_weight" min="0" max="1" step="0.1" value="0.5" data-output="cw-out"><output id="cw-out">0.5</output></div></div>
+    </div>
+    <div class="grid-3">
+      <div class="field"><label for="influencer_share">Share of influencers</label><div class="range-row"><input id="influencer_share" type="range" name="influencer_share" min="0" max="0.15" step="0.01" value="0.04" data-output="is-out" data-percent="1"><output id="is-out">4%</output></div></div>
+      <div class="field"><label for="bot_share">Coordinated accounts (bots / paid bloggers)</label><div class="range-row"><input id="bot_share" type="range" name="bot_share" min="0" max="0.3" step="0.01" value="0" x-model.number="bots" data-output="bs-out" data-percent="1"><output id="bs-out">0%</output></div></div>
+      <div class="field" x-show="bots > 0" x-cloak><label for="bot_stance">They push…</label><select id="bot_stance" name="bot_stance"><option value="-0.85">Against the policy</option><option value="0.85">For the policy</option></select></div>
+    </div>
+    <div class="cluster"><div class="field" style="max-width:160px"><label for="seed">Random seed</label><input id="seed" type="number" name="seed" value="42"></div><button class="btn btn-primary" type="submit" {% if job %}disabled{% endif %}>{% icon "users" %}{% if total %}Regenerate{% else %}Create population{% endif %}</button></div>
+  </form>
+</details>
+
+{% if total %}
+<div class="grid-4">
+  <div class="stat"><div class="label">{% icon "user-round" %}Citizens</div><div class="value">{{ kinds.citizen|default:0 }}</div><div class="delta muted">+ {{ kinds.influencer|default:0 }} influencers</div></div>
+  <div class="stat"><div class="label">{% icon "landmark" %}Institutions & media</div><div class="value">{{ kinds.institution|default:0|add:kinds.media|default:0 }}</div></div>
+  <div class="stat"><div class="label">{% icon "bot" %}Coordinated accounts</div><div class="value">{{ kinds.bot|default:0 }}</div></div>
+  <div class="stat"><div class="label">{% icon "messages-square" %}Group chats</div><div class="value">{{ groups }}</div><div class="delta muted">family, neighbours, savings, faith, work</div></div>
+</div>
+{% if calibration.applied %}<div class="alert alert-info">{% icon "gauge" %}<p>Calibrated to {{ calibration.observed_n }} real public posts: average starting opinion moved from {{ calibration.mean_before|signed }} to {{ calibration.mean_after|signed }} (observed {{ calibration.observed_mean|signed }}).</p></div>{% endif %}
+
+{{ chart_data|json_script:"pop-data" }}
+<div class="grid-2">
+  <section class="card" aria-labelledby="hist-title"><div class="card-header"><h2 id="hist-title">Starting opinions</h2></div><div class="card-body"><div class="chart-box" id="chart-hist"></div></div></section>
+  <section class="card" aria-labelledby="seg-title"><div class="card-header"><h2 id="seg-title">By segment</h2></div><div class="card-body"><div class="chart-box tall" id="chart-arch"></div></div></section>
+</div>
+<section class="card" aria-labelledby="reg-title"><div class="card-header"><h2 id="reg-title">By {{ country.region_label|lower }} group</h2></div><div class="card-body"><div class="chart-box" id="chart-region"></div>
+  <details class="disclosure" style="margin-top: var(--space-3)"><summary>Data table</summary><div class="disclosure-body"><div class="table-wrap"><table><thead><tr><th scope="col">Region</th><th scope="col" class="num">People</th><th scope="col" class="num">Average starting opinion</th></tr></thead><tbody>{% for r in region_rows %}<tr><td>{{ r.name }}</td><td class="num">{{ r.n }}</td><td class="num"><span class="heat" style="{{ r.mean|heat_style }}">{{ r.mean|signed }}</span></td></tr>{% endfor %}</tbody></table></div></div></details>
+</div></section>
+
+{% if priors %}
+<details class="disclosure"><summary>{% icon "lightbulb" %}Why segments start where they do</summary><div class="disclosure-body"><div class="table-wrap"><table><thead><tr><th scope="col">Segment</th><th scope="col" class="num">Starting stance</th><th scope="col" class="num">Cares</th><th scope="col">Reason</th></tr></thead><tbody>
+{% for key, p in priors.items %}<tr><td>{{ key|cut:"_"|capfirst }}</td><td class="num"><span class="heat" style="{{ p.stance|heat_style }}">{{ p.stance|signed }}</span></td><td class="num">{{ p.salience|pct }}</td><td class="small">{{ p.reason|default:"From the impact matrix" }}</td></tr>{% endfor %}
+</tbody></table></div></div></details>
+{% endif %}
+
+<section class="card" aria-labelledby="people-title">
+  <div class="card-header"><h2 id="people-title">{% icon "users" %} People ({{ page.paginator.count }})</h2></div>
+  <div class="card-body stack">
+    <form method="get" class="cluster" role="search">
+      <div class="field" style="flex:1 1 200px"><label for="pq" class="sr-only">Search people</label><input id="pq" type="search" name="q" value="{{ q }}" placeholder="Name, handle or place"></div>
+      <div class="field"><label for="pk-kind" class="sr-only">Type</label><select id="pk-kind" name="kind"><option value="">Everyone</option><option value="citizen" {% if kind == 'citizen' %}selected{% endif %}>Citizens</option><option value="influencer" {% if kind == 'influencer' %}selected{% endif %}>Influencers</option><option value="institution" {% if kind == 'institution' %}selected{% endif %}>Institutions</option><option value="media" {% if kind == 'media' %}selected{% endif %}>Media</option><option value="bot" {% if kind == 'bot' %}selected{% endif %}>Coordinated</option></select></div>
+      <div class="field"><label for="pk-arch" class="sr-only">Segment</label><select id="pk-arch" name="archetype"><option value="">All segments</option>{% for key, label in archetypes %}<option value="{{ key }}" {% if key == archetype %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+      <button class="btn" type="submit">{% icon "filter" %}Filter</button>
+    </form>
+    <div class="grid-auto">
+      {% for a in page.object_list %}
+      <button type="button" class="scenario-card" hx-get="{% url 'swarm:agent_detail' project.pk a.pk %}" hx-target="#modal-content">
+        <span class="cluster-sm"><span class="avatar avatar-sm is-{{ a.initial_stance|stance_class }} {% if a.kind == 'institution' or a.kind == 'media' %}is-institution{% endif %}" aria-hidden="true">{{ a.name|initials }}</span><span><strong>{{ a.name }}</strong><br><span class="tiny muted">@{{ a.handle }}</span></span></span>
+        <span class="cluster-sm"><span class="badge">{{ a.archetype_label }}</span>{% if a.kind != 'citizen' %}<span class="badge badge-info">{{ a.get_kind_display }}</span>{% endif %}</span>
+        <span class="small muted">{% if a.age %}{{ a.age }} · {{ a.gender }} · {% endif %}{{ a.region }}</span>
+        <span>{% stance_badge a.initial_stance %}</span>
+      </button>
+      {% endfor %}
+    </div>
+    <nav class="cluster" aria-label="Pages">
+      {% if page.has_previous %}<a class="btn btn-sm" href="?page={{ page.previous_page_number }}&kind={{ kind }}&archetype={{ archetype }}&q={{ q|urlencode }}">{% icon "arrow-left" %}Previous</a>{% endif %}
+      <span class="small muted">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}<a class="btn btn-sm" href="?page={{ page.next_page_number }}&kind={{ kind }}&archetype={{ archetype }}&q={{ q|urlencode }}">Next {% icon "arrow-right" %}</a>{% endif %}
+    </nav>
+  </div>
+</section>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if total %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    var d = Baraza.readJSON("pop-data");
+    Baraza.histogram(document.getElementById("chart-hist"), [{ label: "People", data: d.hist, color: "--stance-neutral", solid: true }], {});
+    Baraza.divergingBars(document.getElementById("chart-arch"), d.arch.map(function (r) { return r.name + " (" + r.n + ")"; }), d.arch.map(function (r) { return r.mean; }));
+    Baraza.divergingBars(document.getElementById("chart-region"), d.region.map(function (r) { return r.name; }), d.region.map(function (r) { return r.mean; }));
+  });
+</script>
+{% endif %}
+{% endblock %}

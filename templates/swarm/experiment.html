@@ -1,0 +1,71 @@
+{% extends "projects/workspace.html" %}
+{% load static baraza %}
+{% block title %}{{ exp.name }} · {{ project.title }}{% endblock %}
+{% block head %}<script defer src="{% static 'vendor/chart-4.5.1.umd.min.js' %}"></script>{% endblock %}
+{% block workspace %}
+<div class="page-head">
+  <div class="stack-sm">
+    <p class="breadcrumb"><a href="{% url 'swarm:runs' project.pk %}">Simulate</a><span aria-hidden="true">/</span><span>Experiments</span></p>
+    <h1>{{ exp.name }}</h1>
+    <p class="muted mb-0">{% if exp.kind == 'ensemble' %}The same population and scenario re-run {{ exp.config.runs }} times with different random seeds. Bands show where 80% of outcomes fall.{% else %}{{ results.label|default:"One setting" }} varied across values, {{ results.runs_per_value }} runs each. Error bars are 95% confidence intervals.{% endif %}</p>
+  </div>
+  <form method="post" action="{% url 'swarm:experiment_delete' exp.pk %}" onsubmit="return confirm('Delete this experiment?');">{% csrf_token %}<button class="btn btn-danger btn-sm" type="submit">{% icon "trash-2" %}Delete</button></form>
+</div>
+{% if exp.job and exp.job.is_active %}{% include "core/partials/job_status.html" with job=exp.job %}{% endif %}
+{% if exp.status == 'completed' %}
+{{ results|json_script:"exp-data" }}
+{% if exp.kind == 'ensemble' %}
+  {% if results.effect %}
+  <div class="grid-4">
+    <div class="stat"><div class="label">Effect on average opinion</div><div class="value">{{ results.effect.mean|signed }}</div><div class="delta muted">scenario minus baseline</div></div>
+    <div class="stat"><div class="label">Effect on opposition</div><div class="value">{{ results.effect.oppose|pct:1 }}</div></div>
+    <div class="stat"><div class="label">Effect on support</div><div class="value">{{ results.effect.support|pct:1 }}</div></div>
+    <div class="stat"><div class="label">Effect on mobilisation</div><div class="value">{{ results.effect.mobilisation_index|pct:1 }}</div></div>
+  </div>
+  {% endif %}
+  <section class="card"><div class="card-header"><h2>Average opinion over time</h2></div><div class="card-body"><div class="chart-box tall" id="fan-mean"></div></div></section>
+  <section class="card"><div class="card-header"><h2>Share opposed over time</h2></div><div class="card-body"><div class="chart-box" id="fan-oppose"></div></div></section>
+  <section class="card"><div class="card-header"><h2>Final outcomes with 95% confidence intervals</h2></div><div class="card-body"><div id="ci-table" aria-live="polite"></div></div></section>
+{% else %}
+  <section class="card"><div class="card-header"><h2>Effect of {{ results.label|lower }}</h2></div><div class="card-body"><div class="chart-box tall" id="sweep-chart"></div></div></section>
+  <section class="card"><div class="card-body"><div class="table-wrap"><table>
+    <thead><tr><th scope="col">{{ results.label }}</th><th scope="col" class="num">Average opinion</th><th scope="col" class="num">Oppose</th><th scope="col" class="num">Support</th><th scope="col" class="num">Polarisation (Esteban-Ray)</th><th scope="col" class="num">Cross-cutting exposure</th><th scope="col" class="num">Mobilisation</th></tr></thead>
+    <tbody>{% for r in results.rows %}<tr><th scope="row">{{ r.value }}</th><td class="num">{{ r.mean.mean|signed }} <span class="tiny muted">[{{ r.mean.low|signed }}, {{ r.mean.high|signed }}]</span></td><td class="num">{{ r.oppose.mean|pct }}</td><td class="num">{{ r.support.mean|pct }}</td><td class="num">{{ r.esteban_ray.mean|floatformat:3 }}</td><td class="num">{{ r.cross_cutting.mean|pct }}</td><td class="num">{{ r.mobilisation_index.mean|pct }}</td></tr>{% endfor %}</tbody>
+  </table></div></div></section>
+{% endif %}
+{% elif exp.status == 'failed' %}
+<div class="alert alert-danger">{% icon "circle-x" %}<p>The experiment failed. See <a href="{% url 'core:jobs' %}">background tasks</a> for details.</p></div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if exp.status == 'completed' %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    var r = Baraza.readJSON("exp-data");
+    if (r.variants) {
+      var labels = []; for (var i = 0; i <= r.rounds; i++) labels.push(i === 0 ? "Start" : "R" + i);
+      var colors = { baseline: "--stance-neutral", scenario: "--color-accent" };
+      var bands = function (key) { return Object.keys(r.variants).map(function (name) { var b = r.variants[name].bands[key]; return { label: name.charAt(0).toUpperCase() + name.slice(1), p10: b.p10, p50: b.p50, p90: b.p90, color: colors[name] || "--color-accent", dash: name === "baseline" ? [6, 4] : [] }; }); };
+      Baraza.fanChart(document.getElementById("fan-mean"), labels, bands("mean"), {});
+      Baraza.fanChart(document.getElementById("fan-oppose"), labels, bands("oppose"), { percent: true, yMin: 0, yMax: 1 });
+      var keys = [["mean", "Average opinion", false], ["support", "Support", true], ["oppose", "Oppose", true], ["neutral", "Undecided", true], ["esteban_ray", "Polarisation", false], ["mobilisation_index", "Mobilisation", true]];
+      var names = Object.keys(r.variants);
+      var fmt = function (v, pct) { return pct ? Math.round(v * 1000) / 10 + "%" : (v > 0 ? "+" : "") + v.toFixed(3); };
+      var html = '<div class="table-wrap"><table><thead><tr><th scope="col">Measure</th>' + names.map(function (n) { return '<th scope="col" class="num">' + Baraza.escapeHtml(n) + '</th>'; }).join("") + '</tr></thead><tbody>';
+      keys.forEach(function (k) {
+        html += '<tr><th scope="row">' + k[1] + '</th>' + names.map(function (n) { var c = r.variants[n].final[k[0]]; return '<td class="num">' + fmt(c.mean, k[2]) + ' <span class="tiny muted">[' + fmt(c.low, k[2]) + ', ' + fmt(c.high, k[2]) + ']</span></td>'; }).join("") + '</tr>';
+      });
+      document.getElementById("ci-table").innerHTML = html + "</tbody></table></div>";
+    } else if (r.rows) {
+      var lbl = r.rows.map(function (x) { return String(x.value); });
+      Baraza.lineChart(document.getElementById("sweep-chart"), lbl, [
+        { label: "Share opposed", data: r.rows.map(function (x) { return x.oppose.mean; }), color: "--stance-oppose" },
+        { label: "Share supporting", data: r.rows.map(function (x) { return x.support.mean; }), color: "--stance-support" },
+        { label: "Polarisation (Esteban-Ray)", data: r.rows.map(function (x) { return x.esteban_ray.mean; }), color: "--emo-fear", dash: [6, 4] },
+        { label: "Cross-cutting exposure", data: r.rows.map(function (x) { return x.cross_cutting.mean; }), color: "--color-accent", dash: [2, 3] }
+      ], { yMin: 0, yMax: 1 });
+    }
+  });
+</script>
+{% endif %}
+{% endblock %}

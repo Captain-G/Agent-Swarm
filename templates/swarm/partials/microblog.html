@@ -1,0 +1,1 @@
+{% load baraza %}{% for p in posts %}{% include "swarm/partials/post.html" %}{% empty %}<div class="empty-state">{% icon "messages-square" %}<h3>No posts yet</h3><p>Posts appear here as the simulation runs.</p></div>{% endfor %}

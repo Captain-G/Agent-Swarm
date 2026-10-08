@@ -1,0 +1,14 @@
+{% load baraza %}
+{% if group %}<div class="chat-group-title">{% icon "users" %}{{ group.name }} <span class="muted small">· {{ group.members|length }} members · {{ group.kind }}</span></div>{% endif %}
+<div class="chat">
+{% for m in messages_list %}
+  <div class="bubble" aria-label="Message from {{ m.author.name }}">
+    <div class="cluster-sm"><span class="sender" style="color: var(--stance-{{ m.stance|stance_class }})">{{ m.author.name }}</span>{% if not group %}<span class="tiny muted">in {{ m.group_name }}</span>{% endif %}{% if m.is_misinfo %}<span class="badge badge-danger">Rumour</span>{% endif %}</div>
+    {% if m.kind == 'forward' %}<div class="forwarded">{% icon "share-2" %}Forwarded</div>{% endif %}
+    <div>{{ m.text|cut:"Forwarded: "|social_text }}</div>
+    <div class="tiny muted text-right">{{ m.sim_time|date:"D H:i" }}{% if m.likes %} · {% icon "heart" %}{{ m.likes }}{% endif %}</div>
+  </div>
+{% empty %}
+  <div class="empty-state">{% icon "message-circle" %}<h3>No group messages yet</h3></div>
+{% endfor %}
+</div>

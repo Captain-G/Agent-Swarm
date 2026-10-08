@@ -1,0 +1,155 @@
+{% extends "projects/workspace.html" %}
+{% load static baraza humanize %}
+{% block title %}Insights · {{ run.name }}{% endblock %}
+{% block head %}<script defer src="{% static 'vendor/chart-4.5.1.umd.min.js' %}"></script><script defer src="{% static 'vendor/d3-7.9.0.min.js' %}"></script>{% endblock %}
+{% block workspace %}
+{% with s=a.summary %}
+<div class="page-head">
+  <div class="stack-sm">
+    <p class="eyebrow">Step 6 · Insights</p>
+    <h1>{{ run.name }}</h1>
+    <p class="muted mb-0">{{ project.question }}</p>
+  </div>
+  <div class="cluster">
+    {% if other_runs %}<form method="get" action="{% url 'insights:run' run.pk %}" class="cluster-sm" onsubmit="window.location = this.querySelector('select').value; return false;"><label for="switch" class="sr-only">Switch run</label><select id="switch" style="width:auto"><option value="">{{ run.name }}</option>{% for r in other_runs %}<option value="{% url 'insights:run' r.pk %}">{{ r.name }}</option>{% endfor %}</select><button class="btn btn-sm" type="submit">Switch</button></form>{% endif %}
+    <a class="btn btn-primary" href="{% url 'insights:report' run.pk %}">{% icon "file-text" %}{% if report %}Read report{% else %}Write report{% endif %}</a>
+  </div>
+</div>
+{% include "insights/partials/tabs.html" %}
+
+<div class="alert alert-info">{% icon "info" %}<p>In this simulation of {{ project.agents.count }} synthetic people, opinion moved <strong>{{ s.trend }}</strong>: opposition {{ s.start_oppose|pct }} → <strong>{{ s.end_oppose|pct }}</strong>, support {{ s.start_support|pct }} → <strong>{{ s.end_support|pct }}</strong>. This is a scenario exploration, not a poll. {% if not validation %}<a href="{% url 'insights:validation' run.pk %}">Check it against real posts</a>.{% endif %}</p></div>
+
+<div class="grid-4">
+  <div class="stat"><div class="label">{% icon "thumbs-down" %}Oppose</div><div class="value">{{ s.end_oppose|pct }}</div><div class="delta {% if s.end_oppose > s.start_oppose %}delta-down{% else %}delta-up{% endif %}">started at {{ s.start_oppose|pct }} · peak {{ s.peak_oppose|pct }}</div></div>
+  <div class="stat"><div class="label">{% icon "heart" %}Support</div><div class="value">{{ s.end_support|pct }}</div><div class="delta {% if s.end_support >= s.start_support %}delta-up{% else %}delta-down{% endif %}">started at {{ s.start_support|pct }}</div></div>
+  <div class="stat"><div class="label">{% icon "scale" %}Polarisation</div><div class="value">{{ s.end_polarisation|floatformat:2 }}</div><div class="delta muted">Esteban-Ray (0 = consensus, 1 = two camps) · bimodality {{ s.end_bimodality|floatformat:2 }}</div></div>
+  <div class="stat"><div class="label">{% icon "flame" %}Peak mobilisation</div><div class="value">{{ s.peak_mobilisation|pct }}</div><div class="delta muted">strongly opposed and highly aroused</div></div>
+</div>
+
+{{ chart_data|json_script:"insights-data" }}
+<div class="grid-2">
+  <section class="card" aria-labelledby="t1"><div class="card-header"><h2 id="t1">Support and opposition over time</h2></div><div class="card-body"><div class="chart-box" id="ch-shares"></div></div></section>
+  <section class="card" aria-labelledby="t2"><div class="card-header"><h2 id="t2">Opinion, emotion and sentiment</h2></div><div class="card-body"><div class="chart-box" id="ch-mean"></div></div></section>
+  <section class="card" aria-labelledby="t3"><div class="card-header"><h2 id="t3">How people feel</h2></div><div class="card-body"><div class="chart-box" id="ch-emotions"></div></div></section>
+  <section class="card" aria-labelledby="t4"><div class="card-header"><h2 id="t4">Opinions at the start and end</h2></div><div class="card-body"><div class="chart-box" id="ch-hist"></div></div></section>
+</div>
+
+{% if a.trajectory.events %}
+<section class="card" aria-labelledby="ev-title"><div class="card-header"><h2 id="ev-title">{% icon "zap" %} Events and turning points</h2></div><div class="card-body">
+  <ul class="list-plain divider-list">{% for e in a.trajectory.events %}<li><span class="badge">{{ a.trajectory.labels|get_item:e.round|default:e.round }}</span> {{ e.events|join:"; " }}</li>{% endfor %}</ul>
+  {% if s.tipping_rounds %}<p class="small muted mb-0">Sharpest opinion shifts happened at: {% for r in s.tipping_rounds %}{{ a.trajectory.labels|get_item:r }}{% if not forloop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
+</div></section>
+{% endif %}
+
+<section class="card" aria-labelledby="seg-title" x-data="{ dim: 'archetype' }">
+  <div class="card-header"><h2 id="seg-title">{% icon "users" %} Who supports, who opposes</h2></div>
+  <div class="card-body">
+    <div class="tabs" role="tablist" aria-label="Segment by">
+      {% for key, seg in a.segments.items %}<button type="button" role="tab" :aria-selected="(dim === '{{ key }}').toString()" @click="dim = '{{ key }}'; $dispatch('seg-change', '{{ key }}')">{{ seg.label }}</button>{% endfor %}
+    </div>
+    <div class="chart-box tall" id="ch-seg"></div>
+    {% for key, seg in a.segments.items %}
+    <div x-show="dim === '{{ key }}'" {% if key != 'archetype' %}x-cloak{% endif %} class="table-wrap" style="margin-top: var(--space-4)">
+      <table><caption class="sr-only">{{ seg.label }} breakdown</caption>
+        <thead><tr><th scope="col">{{ seg.label }}</th><th scope="col" class="num">People</th><th scope="col" class="num">Start</th><th scope="col" class="num">End</th><th scope="col" class="num">Change</th><th scope="col" class="num">Oppose</th><th scope="col" class="num">Support</th><th scope="col" class="num">Emotion</th></tr></thead>
+        <tbody>{% for r in seg.rows %}<tr><th scope="row">{{ r.name }}</th><td class="num">{{ r.n }}</td><td class="num"><span class="heat" style="{{ r.initial|heat_style }}">{{ r.initial|signed }}</span></td><td class="num"><span class="heat" style="{{ r.final|heat_style }}">{{ r.final|signed }}</span></td><td class="num">{{ r.change|signed }}</td><td class="num">{{ r.oppose|pct }}</td><td class="num">{{ r.support|pct }}</td><td class="num">{{ r.arousal|pct }}</td></tr>{% endfor %}</tbody>
+      </table>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="card" aria-labelledby="arg-title">
+  <div class="card-header"><h2 id="arg-title">{% icon "target" %} Which arguments persuaded, which backfired</h2></div>
+  <div class="card-body stack">
+    <p class="small muted mb-0">“Persuaded” counts readers who moved toward the post's view; “backfired” counts readers pushed the other way. Rates are per 100 views, so arguments that were seen more are not automatically ranked higher.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th scope="col" class="col-text">Argument</th><th scope="col">Side</th><th scope="col" class="num">Posts</th><th scope="col" class="num">Views</th><th scope="col" class="num wrap">Persuaded per 100 views</th><th scope="col" class="num wrap">Backfired per 100 views</th><th scope="col" class="num wrap">Net opinion moved</th></tr></thead>
+      <tbody>{% for r in a.arguments %}<tr><td class="small col-text">{{ r.claim|truncatechars:160 }}</td><td><span class="badge stance-{% if r.side == 'support' %}support{% elif r.side == 'oppose' %}oppose{% else %}neutral{% endif %}">{{ r.side|capfirst }}</span></td><td class="num">{{ r.posts }}</td><td class="num">{{ r.views|intcomma }}</td><td class="num">{{ r.persuasion_rate }}</td><td class="num">{{ r.backfire_rate }}</td><td class="num">{{ r.influence|floatformat:2 }}</td></tr>{% empty %}<tr><td colspan="7" class="muted">No argument data.</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </div>
+</section>
+
+<div class="grid-2">
+  <section class="card" aria-labelledby="pp-title"><div class="card-header"><h2 id="pp-title">{% icon "trending-up" %} Most persuasive posts</h2></div><div class="card-body" style="padding:0">
+    {% for p in a.posts.persuasive %}{% include "swarm/partials/post.html" %}{% empty %}<p class="muted" style="padding: var(--space-4)">None.</p>{% endfor %}
+  </div></section>
+  <section class="card" aria-labelledby="eng-title"><div class="card-header"><h2 id="eng-title">{% icon "flame" %} Most engaged posts</h2></div><div class="card-body" style="padding:0">
+    {% for p in a.posts.top_engaged|slice:":6" %}{% include "swarm/partials/post.html" %}{% empty %}<p class="muted" style="padding: var(--space-4)">None.</p>{% endfor %}
+  </div></section>
+</div>
+
+<section class="card" aria-labelledby="inf-title">
+  <div class="card-header"><h2 id="inf-title">{% icon "radio" %} Most influential accounts</h2><span class="small muted">PageRank on who reacts to and replies to whom</span></div>
+  <div class="card-body"><div class="table-wrap"><table>
+    <thead><tr><th scope="col">Account</th><th scope="col">Type</th><th scope="col">View</th><th scope="col" class="num">Followers</th><th scope="col" class="num">Posts</th><th scope="col" class="num">Influence score</th></tr></thead>
+    <tbody>{% for i in a.network.influencers %}<tr><td><button type="button" class="btn btn-ghost" style="padding:0; min-height:auto" hx-get="{% url 'swarm:agent_detail' project.pk i.id %}?run={{ run.pk }}" hx-target="#modal-content"><strong>{{ i.name }}</strong></button><div class="tiny muted">@{{ i.handle }} · {{ i.archetype }}</div></td><td>{{ i.kind }}</td><td>{% stance_badge i.stance %}</td><td class="num">{{ i.followers|intcomma }}</td><td class="num">{{ i.posts }}</td><td class="num">{{ i.pagerank|floatformat:3 }}</td></tr>{% empty %}<tr><td colspan="6" class="muted">Not enough interactions.</td></tr>{% endfor %}</tbody>
+  </table></div></div>
+</section>
+
+<section class="card" aria-labelledby="net-title">
+  <div class="card-header"><h2 id="net-title">{% icon "network" %} Echo chambers</h2></div>
+  <div class="card-body stack">
+    <div class="grid-4">
+      <div class="stat"><div class="label">Modularity</div><div class="value">{{ a.network.modularity|default_if_none:"–" }}</div><div class="delta muted">above 0.3 = clear clusters</div></div>
+      <div class="stat"><div class="label">E-I index</div><div class="value">{{ a.network.ei_index|default_if_none:"–" }}</div><div class="delta muted">-1 = only own side, +1 = only other side</div></div>
+      <div class="stat"><div class="label">Stance assortativity</div><div class="value">{{ a.network.assortativity|default_if_none:"–" }}</div><div class="delta muted">0 = mixed, 1 = like talks to like</div></div>
+      <div class="stat"><div class="label">Posts</div><div class="value">{{ a.posts.total|intcomma }}</div><div class="delta muted">{{ a.posts.sources.llm|default:0 }} written by AI · {{ a.posts.misinfo.posts }} rumours</div></div>
+    </div>
+    <div class="graph-box" id="net-graph"></div>
+    <div class="legend"><span><i style="background: var(--stance-oppose)"></i>Opposes</span><span><i style="background: var(--stance-neutral)"></i>Undecided</span><span><i style="background: var(--stance-support)"></i>Supports</span><span class="muted">Bigger = more interactions. Lines = likes, reposts and replies.</span></div>
+    {% if a.network.communities %}
+    <div class="table-wrap"><table><caption class="sr-only">Communities</caption><thead><tr><th scope="col">Community</th><th scope="col" class="num">Size</th><th scope="col">Average view</th><th scope="col" class="num">Oppose</th><th scope="col" class="num">Support</th></tr></thead>
+      <tbody>{% for c in a.network.communities %}<tr><th scope="row">{{ forloop.counter }}</th><td class="num">{{ c.size }}</td><td>{% stance_badge c.mean_stance %}</td><td class="num">{{ c.oppose|pct }}</td><td class="num">{{ c.support|pct }}</td></tr>{% endfor %}</tbody></table></div>
+    {% endif %}
+  </div>
+</section>
+
+<div class="grid-2">
+  <section class="card" aria-labelledby="mov-title"><div class="card-header"><h2 id="mov-title">{% icon "git-compare-arrows" %} People who changed most</h2></div><div class="card-body grid-2">
+    <div><p class="label">Toward opposing</p><ul class="list-plain divider-list small">{% for st in movers.toward_oppose %}<li><button type="button" class="btn btn-ghost" style="padding:0; min-height:auto" hx-get="{% url 'swarm:agent_detail' project.pk st.agent_id %}?run={{ run.pk }}" hx-target="#modal-content">{{ st.agent.name }}</button><br><span class="muted">{{ st.agent.archetype_label }} · {{ st.agent.initial_stance|signed }} → {{ st.stance|signed }}</span></li>{% endfor %}</ul></div>
+    <div><p class="label">Toward supporting</p><ul class="list-plain divider-list small">{% for st in movers.toward_support %}<li><button type="button" class="btn btn-ghost" style="padding:0; min-height:auto" hx-get="{% url 'swarm:agent_detail' project.pk st.agent_id %}?run={{ run.pk }}" hx-target="#modal-content">{{ st.agent.name }}</button><br><span class="muted">{{ st.agent.archetype_label }} · {{ st.agent.initial_stance|signed }} → {{ st.stance|signed }}</span></li>{% endfor %}</ul></div>
+  </div></section>
+  <section class="card" aria-labelledby="tag-title"><div class="card-header"><h2 id="tag-title">{% icon "hash" %} Hashtags and platforms</h2></div><div class="card-body stack">
+    <div class="cluster-sm">{% for tag, n in a.posts.hashtags %}<span class="badge badge-outline">{{ tag }} · {{ n }}</span>{% empty %}<span class="muted small">No hashtags.</span>{% endfor %}</div>
+    <dl class="kv small">{% for k, v in a.posts.platforms.items %}<dt>{{ k|capfirst }}</dt><dd>{{ v|intcomma }} posts</dd>{% endfor %}</dl>
+  </div></section>
+</div>
+{% endwith %}
+{% endblock %}
+{% block scripts %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    var d = Baraza.readJSON("insights-data");
+    var s = d.series;
+    Baraza.stackedArea(document.getElementById("ch-shares"), d.labels, [
+      { label: "Oppose", data: s.oppose, color: "--stance-oppose" },
+      { label: "Undecided", data: s.neutral, color: "--stance-neutral" },
+      { label: "Support", data: s.support, color: "--stance-support" }
+    ], { percent: true, yMin: 0, yMax: 1 });
+    Baraza.lineChart(document.getElementById("ch-mean"), d.labels, [
+      { label: "Average opinion", data: s.mean, color: "--color-accent" },
+      { label: "Post sentiment", data: s.sentiment, color: "--emo-hope", dash: [2, 3] },
+      { label: "Emotional intensity", data: s.arousal, color: "--emo-anger", dash: [6, 4] }
+    ], { yMin: -1, yMax: 1 });
+    var emo = Object.keys(d.emotions).filter(function (k) { return d.emotions[k].some(function (v) { return v > 0; }); });
+    Baraza.stackedArea(document.getElementById("ch-emotions"), d.labels, emo.map(function (k) { return { label: k.charAt(0).toUpperCase() + k.slice(1), data: d.emotions[k], color: "--emo-" + k }; }), {});
+    Baraza.histogram(document.getElementById("ch-hist"), [
+      { label: "Start", data: d.hist_initial, color: "--stance-neutral" },
+      { label: "End", data: d.hist_final, color: "--color-accent" }
+    ], {});
+    var segChart = null;
+    function drawSeg(key) {
+      var seg = d.segments[key];
+      var el = document.getElementById("ch-seg");
+      if (segChart && segChart.chart) { segChart.chart.destroy(); el.innerHTML = ""; }
+      segChart = Baraza.divergingBars(el, seg.labels, seg.final, { label: "Average opinion at the end" });
+    }
+    drawSeg("archetype");
+    window.addEventListener("seg-change", function (e) { drawSeg(e.detail); });
+    fetch("{% url 'insights:network' run.pk %}").then(function (r) { return r.json(); }).then(function (data) {
+      Baraza.forceGraph(document.getElementById("net-graph"), data, { colorBy: "stance", label: "Interaction network of simulated accounts" });
+    });
+  });
+</script>
+{% endblock %}

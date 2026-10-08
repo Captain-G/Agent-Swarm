@@ -1,0 +1,128 @@
+{% extends "projects/workspace.html" %}
+{% load baraza humanize %}
+{% block title %}Research · {{ project.title }}{% endblock %}
+{% block workspace %}
+<div class="page-head">
+  <div class="stack-sm">
+    <p class="eyebrow">Step 2 · Deep research</p>
+    <h1>What people are already saying</h1>
+    <p class="muted mb-0">Collect news, analysis and public posts. Free sources are selected by default. Everything collected here grounds the agents in reality.</p>
+  </div>
+  <div class="cluster">
+    <span class="badge badge-info">{{ included }} of {{ total }} sources in use</span>
+    {% if included %}<a class="btn btn-primary" href="{% url 'knowledge:index' project.pk %}">{% icon "arrow-right" %}Next: build knowledge</a>{% endif %}
+  </div>
+</div>
+
+{% if job %}{% include "core/partials/job_status.html" with job=job %}{% endif %}
+
+<div class="grid-2">
+  <section class="card" aria-labelledby="run-title">
+    <div class="card-header"><h2 id="run-title">{% icon "search" %} Search the web and social media</h2></div>
+    <form method="post" action="{% url 'research:run' project.pk %}" class="card-body stack">
+      {% csrf_token %}
+      {% for tier in tiers %}
+      <fieldset>
+        <legend>{{ tier.label }}</legend>
+        <div class="choice-grid">
+          {% for c in tier.items %}
+          <label class="choice" {% if not c.configured %}title="Needs setup: {{ c.setup }}"{% endif %}>
+            <input type="checkbox" name="connectors" value="{{ c.key }}" {% if c.key in selected %}checked{% endif %} {% if not c.configured %}disabled{% endif %}>
+            <span><strong class="small">{{ c.name }}</strong><span class="tiny muted" style="display:block">{% if c.configured %}{{ c.description|truncatechars:90 }}{% else %}Needs setup · <a href="{% url 'core:settings' %}">add key</a>{% endif %}</span></span>
+          </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+      {% endfor %}
+      <div class="grid-2">
+        <div class="field"><label for="depth">How much to read</label><select id="depth" name="depth">{% for v, l in project.Depth.choices %}<option value="{{ v }}" {% if v == project.depth %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+        <div class="field"><label for="timelimit">Time window</label><select id="timelimit" name="timelimit"><option value="d">Past day</option><option value="w">Past week</option><option value="m" selected>Past month</option><option value="y">Past year</option><option value="">Any time</option></select></div>
+      </div>
+      <div class="field"><label for="extra_queries">Extra searches <span class="muted">(optional, one per line)</span></label><textarea id="extra_queries" name="extra_queries" rows="2" placeholder="e.g. bread prices Nairobi"></textarea></div>
+      <div class="cluster"><button class="btn btn-primary" type="submit" {% if job %}disabled{% endif %}>{% icon "search" %}Start research</button><a class="small" href="{% url 'research:catalog' %}">What does each source give me?</a></div>
+    </form>
+  </section>
+
+  <div class="stack">
+    <section class="card" aria-labelledby="own-title" x-data="{ tab: 'url' }">
+      <div class="card-header"><h2 id="own-title">{% icon "upload" %} Add your own evidence</h2></div>
+      <div class="card-body">
+        <div class="tabs" role="tablist" aria-label="Evidence type">
+          <button type="button" role="tab" :aria-selected="(tab === 'url').toString()" @click="tab = 'url'">{% icon "link" %}Web page</button>
+          <button type="button" role="tab" :aria-selected="(tab === 'text').toString()" @click="tab = 'text'">{% icon "clipboard-paste" %}Paste text</button>
+          <button type="button" role="tab" :aria-selected="(tab === 'file').toString()" @click="tab = 'file'">{% icon "file-text" %}Files</button>
+        </div>
+        <form method="post" action="{% url 'research:manual' project.pk %}" x-show="tab === 'url'" class="stack">{% csrf_token %}<input type="hidden" name="kind" value="url">
+          <div class="field"><label for="m-url">Article or report address</label><input id="m-url" type="url" name="url" placeholder="https://…" required></div>
+          <button class="btn" type="submit">{% icon "plus" %}Add page</button>
+        </form>
+        <form method="post" action="{% url 'research:manual' project.pk %}" x-show="tab === 'text'" x-cloak class="stack">{% csrf_token %}<input type="hidden" name="kind" value="text">
+          <div class="field"><label for="m-title">Title</label><input id="m-title" name="title" placeholder="e.g. Draft bill summary"></div>
+          <div class="field"><label for="m-text">Text</label><textarea id="m-text" name="text" rows="5" required placeholder="Paste a policy draft, a press release, WhatsApp messages, survey notes…"></textarea></div>
+          <button class="btn" type="submit">{% icon "plus" %}Add text</button>
+        </form>
+        <form method="post" action="{% url 'research:manual' project.pk %}" enctype="multipart/form-data" x-show="tab === 'file'" x-cloak class="stack">{% csrf_token %}<input type="hidden" name="kind" value="file">
+          <div class="field"><label for="m-files">PDF, Word, text, HTML or CSV files</label><input id="m-files" type="file" name="files" multiple accept=".pdf,.docx,.txt,.md,.html,.htm,.csv">
+          <p class="help">A CSV with a <code>text</code> column (and optional <code>date</code>, <code>platform</code>, <code>likes</code>) is imported as social posts, e.g. an export from a paid social listening tool.</p></div>
+          <button class="btn" type="submit">{% icon "upload" %}Upload</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="obs-title">
+      <div class="card-header"><h2 id="obs-title">{% icon "gauge" %} Public stance found so far</h2></div>
+      <div class="card-body stack-sm">
+        {% if observed.n_stance %}
+          <p class="small muted mb-0">From {{ observed.n_stance }} public posts labelled by the AI. Used to calibrate the synthetic population.</p>
+          <div class="cluster-sm">
+            <span class="badge stance-oppose">Oppose {{ observed.oppose_share|pct }}</span>
+            <span class="badge stance-neutral">Neutral {{ observed.neutral_share|pct }}</span>
+            <span class="badge stance-support">Support {{ observed.support_share|pct }}</span>
+          </div>
+          <div class="stance-bar" aria-hidden="true"><span class="marker" style="left: {{ observed.mean|stance_pos }}"></span></div>
+          <p class="small mb-0">Average: <strong>{{ observed.mean|signed }}</strong> ({{ observed.mean|stance_label }})</p>
+        {% elif observed.n_social %}
+          <p class="mb-0 small">{{ observed.n_social }} public posts collected; average sentiment {{ observed.social_sentiment_mean|signed }}. Connect a language model to label their stance.</p>
+        {% else %}
+          <p class="mb-0 small muted">No public posts yet. Run research with social sources (Reddit, YouTube, search-indexed posts) or upload a CSV of posts.</p>
+        {% endif %}
+        {% if platform_counts %}
+          <ul class="list-plain small">{% for key, n in platform_counts.items %}<li class="spread"><span>{{ platform_labels|get_item:key }}</span><span class="muted">{{ n }} item{{ n|pluralize }}{% with s=sentiment_by_platform|get_item:key %}{% if s is not None %} · sentiment {{ s|signed }}{% endif %}{% endwith %}</span></li>{% endfor %}</ul>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+</div>
+
+<section class="card" aria-labelledby="sources-title">
+  <div class="card-header">
+    <h2 id="sources-title">{% icon "library" %} Sources ({{ page.paginator.count }})</h2>
+    <form method="post" action="{% url 'research:bulk' project.pk %}" class="cluster-sm">{% csrf_token %}
+      <label for="bulk" class="sr-only">Bulk action</label>
+      <select id="bulk" name="action" style="width:auto"><option value="exclude_low">Exclude low-relevance articles</option><option value="include_all">Include everything</option><option value="delete_excluded">Delete excluded sources</option></select>
+      <button class="btn btn-sm" type="submit">Apply</button>
+    </form>
+  </div>
+  <div class="card-body stack">
+    <form method="get" class="cluster" role="search">
+      <div class="field" style="flex:1 1 220px"><label for="q" class="sr-only">Search sources</label><input id="q" type="search" name="q" value="{{ q }}" placeholder="Search titles and text"></div>
+      <div class="field"><label for="platform" class="sr-only">Platform</label><select id="platform" name="platform"><option value="">All platforms</option>{% for key, label in platform_labels.items %}{% if key in platform_counts %}<option value="{{ key }}" {% if key == platform %}selected{% endif %}>{{ label }} ({{ platform_counts|get_item:key }})</option>{% endif %}{% endfor %}</select></div>
+      <div class="field"><label for="show" class="sr-only">Show</label><select id="show" name="show"><option value="included" {% if show == 'included' %}selected{% endif %}>In use</option><option value="excluded" {% if show == 'excluded' %}selected{% endif %}>Excluded</option><option value="all" {% if show == 'all' %}selected{% endif %}>All</option></select></div>
+      <button class="btn" type="submit">{% icon "filter" %}Filter</button>
+    </form>
+    {% if page.object_list %}
+    <div class="table-wrap"><table>
+      <thead><tr><th scope="col">Source</th><th scope="col">Signals</th><th scope="col" class="num">Relevance</th><th scope="col">Use</th></tr></thead>
+      <tbody>{% for s in page.object_list %}{% include "research/partials/source_row.html" %}{% endfor %}</tbody>
+    </table></div>
+    <nav class="cluster" aria-label="Pages">
+      {% if page.has_previous %}<a class="btn btn-sm" href="?page={{ page.previous_page_number }}&platform={{ platform }}&show={{ show }}&q={{ q|urlencode }}">{% icon "arrow-left" %}Previous</a>{% endif %}
+      <span class="small muted">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}<a class="btn btn-sm" href="?page={{ page.next_page_number }}&platform={{ platform }}&show={{ show }}&q={{ q|urlencode }}">Next {% icon "arrow-right" %}</a>{% endif %}
+    </nav>
+    {% else %}
+    <div class="empty-state">{% icon "search" %}<h3>No sources {% if q or platform %}match your filter{% else %}yet{% endif %}</h3><p>Start research above, or add your own evidence. If you are offline, paste text or upload documents instead.</p></div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

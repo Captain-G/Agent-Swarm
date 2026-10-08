@@ -1,0 +1,57 @@
+{% extends "projects/workspace.html" %}
+{% load baraza %}
+{% block title %}Interviews · {{ run.name }}{% endblock %}
+{% block workspace %}
+<div class="page-head"><div class="stack-sm"><p class="eyebrow">Step 6 · Talk to the simulation</p><h1>Interviews, Q&amp;A and polls</h1><p class="muted mb-0">Interview any synthetic person in character, ask the Observer about the whole run, or poll a virtual focus group.</p></div></div>
+{% include "insights/partials/tabs.html" %}
+<div class="grid-2">
+  <section class="card" aria-labelledby="iv-title">
+    <div class="card-header"><h2 id="iv-title">{% icon "user-round" %} Interview a person</h2></div>
+    <div class="card-body stack-sm">
+      <form method="get" class="cluster-sm"><label for="agent-pick" class="sr-only">Choose who to interview</label>
+        <select id="agent-pick" name="agent" onchange="this.form.submit()"><option value="">Choose someone…</option>
+          {% regroup agents by get_kind_display as groups %}{% for g in groups %}<optgroup label="{{ g.grouper }}">{% for a in g.list %}<option value="{{ a.pk }}" {% if agent and agent.pk == a.pk %}selected{% endif %}>{{ a.name }} · {{ a.archetype_label }}{% if a.region %} · {{ a.region }}{% endif %}</option>{% endfor %}</optgroup>{% endfor %}
+        </select>
+        <noscript><button class="btn btn-sm" type="submit">Open</button></noscript>
+      </form>
+      {% if agent %}
+        <div class="cluster-sm"><span class="avatar avatar-sm is-{{ agent.initial_stance|stance_class }}" aria-hidden="true">{{ agent.name|initials }}</span><button type="button" class="btn btn-ghost btn-sm" hx-get="{% url 'swarm:agent_detail' project.pk agent.pk %}?run={{ run.pk }}" hx-target="#modal-content">{% icon "info" %}Profile</button></div>
+        <div class="card" style="box-shadow:none">
+          <div id="agent-chat">{% include "insights/partials/conversation.html" with interview=interview agent=agent %}</div>
+          <form class="chat-input" hx-post="{% url 'insights:talk_send' run.pk %}" hx-target="#agent-chat" hx-on::after-request="this.reset()" hx-disabled-elt="find button">
+            <input type="hidden" name="target" value="{{ agent.pk }}"><label for="agent-msg" class="sr-only">Your question</label>
+            <input id="agent-msg" name="message" required placeholder="e.g. What would make you support this?" autocomplete="off">
+            <button class="btn btn-primary" type="submit"><span class="spinner" aria-hidden="true"></span>{% icon "message-circle" %}Ask</button>
+          </form>
+        </div>
+      {% else %}<p class="muted small mb-0">Pick a citizen, an influencer, an institution or a news outlet.</p>{% endif %}
+    </div>
+  </section>
+  <section class="card" aria-labelledby="ob-title">
+    <div class="card-header"><h2 id="ob-title">{% icon "eye" %} Ask the Observer</h2></div>
+    <div class="card-body">
+      <div class="card" style="box-shadow:none">
+        <div id="observer-chat">{% include "insights/partials/conversation.html" with interview=observer agent=None %}</div>
+        <form class="chat-input" hx-post="{% url 'insights:talk_send' run.pk %}" hx-target="#observer-chat" hx-on::after-request="this.reset()" hx-disabled-elt="find button">
+          <input type="hidden" name="target" value="observer"><label for="ob-msg" class="sr-only">Your question</label>
+          <input id="ob-msg" name="message" required placeholder="e.g. Why did farmers turn against it?" autocomplete="off">
+          <button class="btn btn-primary" type="submit"><span class="spinner" aria-hidden="true"></span>{% icon "message-circle" %}Ask</button>
+        </form>
+      </div>
+    </div>
+  </section>
+</div>
+<section class="card" aria-labelledby="poll-title">
+  <div class="card-header"><h2 id="poll-title">{% icon "vote" %} Virtual focus group</h2></div>
+  <div class="card-body stack">
+    <p class="small muted mb-0">Ask a stratified sample of the synthetic public a question, e.g. to test a revised proposal before announcing it.</p>
+    <form method="post" action="{% url 'insights:poll_create' run.pk %}" class="grid-3">{% csrf_token %}
+      <div class="field span-2"><label for="poll-q">Question</label><input id="poll-q" name="question" required placeholder="Would you support the bill if VAT on bread were removed?"></div>
+      <div class="field"><label for="poll-n">Respondents</label><input id="poll-n" type="number" name="sample_size" min="6" max="200" value="24"></div>
+      <div class="field span-2"><label for="poll-o">Answer options <span class="muted">(comma-separated, optional)</span></label><input id="poll-o" name="options" value="Yes, No, Not sure"></div>
+      <div style="align-self:end"><button class="btn btn-primary" type="submit">{% icon "vote" %}Ask the group</button></div>
+    </form>
+    {% if polls %}<ul class="list-plain divider-list">{% for p in polls %}<li class="spread"><a href="{% url 'insights:poll' run.pk p.pk %}">{{ p.question|truncatechars:100 }}</a><span class="cluster-sm"><span class="tiny muted">{{ p.summary.n|default:0 }} answers</span><span class="badge {% if p.status == 'completed' %}badge-success{% else %}badge-info{% endif %}">{{ p.status }}</span></span></li>{% endfor %}</ul>{% endif %}
+  </div>
+</section>
+{% endblock %}

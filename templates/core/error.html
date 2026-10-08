@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% load baraza %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="container" style="padding: var(--space-8) var(--space-4)">
+  <div class="empty-state">{% icon "triangle-alert" %}<h1 style="font-size:1.6rem">{{ code }} · {{ title }}</h1><p>{{ message }}</p><a class="btn btn-primary" href="/">{% icon "house" %}Go home</a></div>
+</div>
+{% endblock %}

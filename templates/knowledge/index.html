@@ -1,0 +1,145 @@
+{% extends "projects/workspace.html" %}
+{% load static baraza %}
+{% block title %}Knowledge · {{ project.title }}{% endblock %}
+{% block head %}<script defer src="{% static 'vendor/d3-7.9.0.min.js' %}"></script>{% endblock %}
+{% block workspace %}
+<div class="page-head">
+  <div class="stack-sm">
+    <p class="eyebrow">Step 3 · Knowledge</p>
+    <h1>Research dossier and knowledge graph</h1>
+    <p class="muted mb-0">The evidence is read and organised into actors, relationships, arguments, facts and rumours. Agents draw on this during the simulation.</p>
+  </div>
+  <div class="cluster">
+    <form method="post" action="{% url 'knowledge:build' project.pk %}">{% csrf_token %}<button class="btn {% if not dossier %}btn-primary{% endif %}" type="submit" {% if job %}disabled{% endif %}>{% icon "brain-circuit" %}{% if dossier %}Rebuild{% else %}Build knowledge base{% endif %}</button></form>
+    {% if dossier %}<a class="btn btn-primary" href="{% url 'swarm:population' project.pk %}">{% icon "arrow-right" %}Next: population</a>{% endif %}
+  </div>
+</div>
+
+{% if job %}{% include "core/partials/job_status.html" with job=job %}{% endif %}
+
+{% if not dossier and not job %}
+<div class="empty-state">{% icon "brain-circuit" %}<h3>Not built yet</h3><p>Build the knowledge base from your {{ project.sources.count }} source{{ project.sources.count|pluralize }}. With no sources it still works from the brief alone.</p></div>
+{% endif %}
+
+{% if dossier %}
+{% if dossier.generated_by == 'heuristic' %}<div class="alert alert-warning">{% icon "triangle-alert" %}<p>Built without an AI model, so the dossier is extractive and basic. Connect Ollama and rebuild for a proper synthesis.</p></div>{% endif %}
+<div class="grid-4">
+  <div class="stat"><div class="label">{% icon "file-text" %}Evidence chunks</div><div class="value">{{ n_chunks }}</div></div>
+  <div class="stat"><div class="label">{% icon "users" %}Actors</div><div class="value">{{ n_entities }}</div></div>
+  <div class="stat"><div class="label">{% icon "network" %}Relationships</div><div class="value">{{ n_relations }}</div></div>
+  <div class="stat"><div class="label">{% icon "scale" %}Arguments</div><div class="value">{{ n_arguments }}</div></div>
+</div>
+
+<section class="card" aria-labelledby="summary-title">
+  <div class="card-header"><h2 id="summary-title">{% icon "book-open" %} Executive summary</h2></div>
+  <div class="card-body stack">
+    <p>{{ dossier.summary }}</p>
+    {% if dossier.background and dossier.background != dossier.summary %}<details class="disclosure"><summary>Background</summary><div class="disclosure-body"><p class="mb-0">{{ dossier.background|linebreaksbr }}</p></div></details>{% endif %}
+    {% if dossier.narratives %}<div><p class="label mb-0">Dominant narratives</p><div class="cluster-sm" style="margin-top:6px">{% for n in dossier.narratives %}<span class="badge badge-outline">{{ n }}</span>{% endfor %}</div></div>{% endif %}
+  </div>
+</section>
+
+<div class="grid-2">
+  <section class="card" aria-labelledby="facts-title">
+    <div class="card-header"><h2 id="facts-title">{% icon "list-checks" %} Key facts</h2></div>
+    <div class="card-body">
+      {% if facts %}<ul class="list-plain divider-list">{% for f in facts %}<li>{{ f.fact }}{% for s in f.sources %} <a class="tiny" href="{{ s.url|default:'#' }}" target="_blank" rel="noopener noreferrer">[{{ s.domain|default:s.get_platform_display }}]</a>{% endfor %}</li>{% endfor %}</ul>{% else %}<p class="muted mb-0">No checkable facts were extracted.</p>{% endif %}
+    </div>
+  </section>
+  <section class="card" aria-labelledby="timeline-title">
+    <div class="card-header"><h2 id="timeline-title">{% icon "history" %} Timeline</h2></div>
+    <div class="card-body">
+      {% if dossier.timeline %}<ol class="list-plain divider-list">{% for t in dossier.timeline %}<li><strong class="small">{{ t.date }}</strong><br>{{ t.event }}</li>{% endfor %}</ol>{% else %}<p class="muted mb-0">No dated events in the evidence.</p>{% endif %}
+    </div>
+  </section>
+</div>
+
+<section class="card" aria-labelledby="impact-title">
+  <div class="card-header"><h2 id="impact-title">{% icon "target" %} Who is affected and stakeholder positions</h2></div>
+  <div class="card-body grid-2">
+    <div class="table-wrap"><table>
+      <caption class="sr-only">Impact on groups of citizens</caption>
+      <thead><tr><th scope="col">Group</th><th scope="col">Impact</th><th scope="col" class="num">Direction</th></tr></thead>
+      <tbody>{% for r in dossier.impact_matrix %}<tr><td><strong>{{ r.group }}</strong></td><td class="small">{{ r.impact }}</td><td class="num"><span class="heat" style="{{ r.direction|heat_style }}">{{ r.direction|signed:1 }}</span></td></tr>{% empty %}<tr><td colspan="3" class="muted">No impact data.</td></tr>{% endfor %}</tbody>
+    </table></div>
+    <div class="table-wrap"><table>
+      <caption class="sr-only">Stakeholder positions</caption>
+      <thead><tr><th scope="col">Stakeholder</th><th scope="col">Position</th><th scope="col" class="num">Influence</th></tr></thead>
+      <tbody>{% for s in dossier.stakeholders %}<tr><td><strong>{{ s.name }}</strong><div class="tiny muted">{{ s.type|cut:"_" }}{% if s.summary %} · {{ s.summary|truncatechars:90 }}{% endif %}</div></td><td>{% stance_badge s.position %}</td><td class="num">{{ s.influence|pct }}</td></tr>{% empty %}<tr><td colspan="3" class="muted">No stakeholders.</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </div>
+</section>
+
+<section class="card" aria-labelledby="args-title" id="arguments">
+  <div class="card-header"><h2 id="args-title">{% icon "scale" %} Argument bank</h2><span class="small muted">Agents use these when they post. Add your own message to test how it lands.</span></div>
+  <div class="card-body stack">
+    <div class="grid-3">
+      <div><h3 class="cluster-sm"><span class="stance-dot" style="background: var(--stance-oppose)"></span>Against ({{ oppose_args|length }})</h3>{% include "knowledge/partials/arg_list.html" with items=oppose_args %}</div>
+      <div><h3 class="cluster-sm"><span class="stance-dot" style="background: var(--stance-neutral)"></span>Conditional ({{ neutral_args|length }})</h3>{% include "knowledge/partials/arg_list.html" with items=neutral_args %}</div>
+      <div><h3 class="cluster-sm"><span class="stance-dot" style="background: var(--stance-support)"></span>For ({{ support_args|length }})</h3>{% include "knowledge/partials/arg_list.html" with items=support_args %}</div>
+    </div>
+    <details class="disclosure">
+      <summary>{% icon "plus" %}Add an argument or a message you want to test</summary>
+      <form method="post" action="{% url 'knowledge:add_argument' project.pk %}" class="disclosure-body grid-2">{% csrf_token %}
+        <div class="field span-2"><label for="a-claim">Argument</label><textarea id="a-claim" name="claim" rows="2" required placeholder="e.g. The levy will fund 500 new nurses in county hospitals this year."></textarea></div>
+        <div class="field"><label for="a-short">Short version for social media <span class="muted">(optional)</span></label><input id="a-short" name="short" maxlength="280"></div>
+        <div class="field"><label for="a-side">Side</label><select id="a-side" name="side"><option value="support">For</option><option value="oppose">Against</option><option value="neutral">Conditional / neutral</option></select></div>
+        <div class="field"><label for="a-emotion">Tone</label><select id="a-emotion" name="emotion"><option value="trust">Reassuring</option><option value="hope">Hopeful</option><option value="neutral">Neutral</option><option value="fear">Worried</option><option value="anger">Angry</option></select></div>
+        <div class="field"><label for="a-strength">Persuasiveness (your estimate)</label><div class="range-row"><input id="a-strength" type="range" name="strength" min="0" max="1" step="0.1" value="0.6" data-output="a-strength-out"><output id="a-strength-out">0.6</output></div></div>
+        <div><button class="btn btn-primary" type="submit">{% icon "plus" %}Add to the bank</button></div>
+      </form>
+    </details>
+  </div>
+</section>
+
+{% if dossier.rumors or dossier.uncertainties %}
+<div class="grid-2">
+  {% if dossier.rumors %}<section class="card" aria-labelledby="rumors-title"><div class="card-header"><h2 id="rumors-title">{% icon "shield-alert" %} Rumours to prepare for</h2></div><div class="card-body"><ul class="list-plain divider-list">{% for r in dossier.rumors %}<li>{{ r }}</li>{% endfor %}</ul><p class="help">Simulated coordinated accounts may spread these. Test a fact-check intervention against them.</p></div></section>{% endif %}
+  {% if dossier.uncertainties %}<section class="card" aria-labelledby="unc-title"><div class="card-header"><h2 id="unc-title">{% icon "circle-help" %} Open questions</h2></div><div class="card-body"><ul class="list-plain divider-list">{% for u in dossier.uncertainties %}<li>{{ u }}</li>{% endfor %}</ul></div></section>{% endif %}
+</div>
+{% endif %}
+
+<section class="card" aria-labelledby="graph-title">
+  <div class="card-header"><h2 id="graph-title">{% icon "network" %} Knowledge graph</h2><span class="small muted">Drag to move, scroll to zoom. Bigger = more central.</span></div>
+  <div class="card-body stack-sm">
+    <div class="graph-box" id="kg" aria-describedby="kg-help"></div>
+    <div class="legend" id="kg-legend"></div>
+    <p id="kg-help" class="help">The table below lists the same actors for screen readers and keyboard users.</p>
+    <details class="disclosure"><summary>Actors table ({{ entities|length }} most central)</summary><div class="disclosure-body">
+      <div class="table-wrap"><table><thead><tr><th scope="col">Actor</th><th scope="col">Type</th><th scope="col" class="num">Centrality</th><th scope="col">Position</th></tr></thead>
+      <tbody>{% for e in entities %}<tr><td><strong>{{ e.name }}</strong>{% if e.description %}<div class="tiny muted">{{ e.description|truncatechars:120 }}</div>{% endif %}</td><td>{{ e.get_type_display }}</td><td class="num">{{ e.salience|pct }}</td><td>{% if e.stance is not None %}{% stance_badge e.stance %}{% else %}<span class="muted small">unknown</span>{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+    </div></details>
+  </div>
+</section>
+
+{% if communities %}
+<section class="card" aria-labelledby="comm-title">
+  <div class="card-header"><h2 id="comm-title">{% icon "layers" %} Clusters of actors</h2></div>
+  <div class="card-body grid-2">{% for c in communities %}<div class="stack-sm"><strong>{{ c.title }}</strong><span class="tiny muted">{{ c.size }} actors</span>{% if c.summary %}<p class="small mb-0">{{ c.summary }}</p>{% endif %}</div>{% endfor %}</div>
+</section>
+{% endif %}
+
+<section class="card" aria-labelledby="ask-title">
+  <div class="card-header"><h2 id="ask-title">{% icon "search" %} Search the evidence</h2></div>
+  <div class="card-body stack">
+    <form hx-get="{% url 'knowledge:search' project.pk %}" hx-target="#kb-results" class="cluster" role="search">
+      <label for="kb-q" class="sr-only">Search the evidence</label><input id="kb-q" name="q" type="search" placeholder="e.g. What do trade unions say?" style="flex:1 1 260px">
+      <button class="btn" type="submit">{% icon "search" %}Search</button>
+    </form>
+    <div id="kb-results" aria-live="polite"></div>
+  </div>
+</section>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if dossier %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    fetch("{% url 'knowledge:graph' project.pk %}").then(function (r) { return r.json(); }).then(function (data) {
+      Baraza.forceGraph(document.getElementById("kg"), data, { colorBy: "type", legendEl: document.getElementById("kg-legend"), label: "Knowledge graph of actors" });
+    });
+  });
+  document.addEventListener("baraza:theme", function () { location.reload(); });
+</script>
+{% endif %}
+{% endblock %}

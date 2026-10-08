@@ -1,0 +1,124 @@
+{% extends "projects/workspace.html" %}
+{% load baraza %}
+{% block title %}Brief · {{ project.title }}{% endblock %}
+{% block workspace %}
+<div class="page-head">
+  <div class="stack-sm">
+    <p class="eyebrow">Step 1 · Brief</p>
+    <h1>Your question, made precise</h1>
+    <p class="muted mb-0">The AI rewrote your prompt into a research brief so every later step has full context. Check it, fix anything that is wrong, then approve.</p>
+  </div>
+  {% if project.brief and not job %}
+  <form method="post" action="{% url 'projects:regenerate_brief' project.pk %}" onsubmit="return confirm('Throw away this brief and write a new one?');">{% csrf_token %}<button class="btn" type="submit">{% icon "refresh-cw" %}Regenerate</button></form>
+  {% endif %}
+</div>
+
+<details class="disclosure">
+  <summary>{% icon "quote" %}Your original prompt</summary>
+  <div class="disclosure-body"><p class="mb-0">{{ project.prompt|linebreaksbr }}</p></div>
+</details>
+
+{% if job %}
+  {% include "core/partials/job_status.html" with job=job %}
+{% endif %}
+
+{% if not project.brief and not job %}
+  <div class="empty-state">{% icon "sparkles" %}<h3>No brief yet</h3><p>Generate one from your prompt.</p>
+    <form method="post" action="{% url 'projects:regenerate_brief' project.pk %}">{% csrf_token %}<button class="btn btn-primary" type="submit">{% icon "sparkles" %}Write the brief</button></form>
+  </div>
+{% endif %}
+
+{% if project.brief %}
+{% with b=project.brief %}
+{% if b.generated_by == 'heuristic' %}
+<div class="alert alert-warning">{% icon "triangle-alert" %}<p>This brief was written without an AI model (heuristic mode), so it is basic. Connect Ollama in <a href="{% url 'core:settings' %}">Settings</a> and regenerate for a much better brief, or edit it below.</p></div>
+{% endif %}
+{{ brief_json|json_script:"brief-data" }}
+<form method="post" class="stack-lg" x-data="briefEditor()">
+  {% csrf_token %}
+  <section class="card"><div class="card-body stack">
+    <div class="field"><label for="title">Short title</label><input id="title" name="title" value="{{ b.title }}" maxlength="90" required></div>
+    <div class="field"><label for="refined_question">Research question</label><textarea id="refined_question" name="refined_question" rows="2" style="min-height:70px">{{ b.refined_question }}</textarea></div>
+    <div class="field"><label for="summary">What is proposed and why it matters</label><textarea id="summary" name="summary" rows="4">{{ b.summary }}</textarea></div>
+    <div class="grid-3">
+      <div class="field"><label for="proposer">Proposed by</label><select id="proposer" name="proposer">{% for p in proposers %}<option value="{{ p }}" {% if p == b.proposer %}selected{% endif %}>{{ p|cut:"_"|capfirst }}</option>{% endfor %}</select><p class="help">Shapes how political leaning affects views.</p></div>
+      <div class="field"><label for="proposer_name">Name of proposer</label><input id="proposer_name" name="proposer_name" value="{{ b.proposer_name }}" placeholder="e.g. National Treasury"></div>
+      <div class="field"><label for="time_horizon">Time frame to simulate</label><input id="time_horizon" name="time_horizon" value="{{ b.time_horizon }}"></div>
+    </div>
+    <div class="field"><label for="policy_details">Concrete measures <span class="muted">(one per line)</span></label><textarea id="policy_details" name="policy_details" rows="3">{{ b.policy_details|lines }}</textarea></div>
+  </div></section>
+
+  <section class="card" aria-labelledby="groups-title">
+    <div class="card-header"><h2 id="groups-title">{% icon "users" %} Who is affected, and how</h2><button type="button" class="btn btn-sm" @click="groups.push({group:'', impact:'', direction:0, intensity:0.5})">{% icon "plus" %}Add group</button></div>
+    <div class="card-body">
+      <p class="help">Direction: -1 means harmed (likely to oppose), +1 means benefits (likely to support). This sets each segment's starting opinion.</p>
+      <input type="hidden" name="affected_groups" :value="JSON.stringify(groups)">
+      <div class="table-wrap"><table>
+        <thead><tr><th scope="col">Group</th><th scope="col">How they are affected</th><th scope="col">Direction</th><th scope="col">Intensity</th><th scope="col"><span class="sr-only">Remove</span></th></tr></thead>
+        <tbody>
+          <template x-for="(g, i) in groups" :key="i">
+            <tr>
+              <td><input type="text" x-model="g.group" :aria-label="'Group ' + (i+1)"></td>
+              <td><input type="text" x-model="g.impact" :aria-label="'Impact on group ' + (i+1)"></td>
+              <td style="min-width:150px"><div class="range-row"><input type="range" min="-1" max="1" step="0.1" x-model.number="g.direction" :aria-label="'Direction for group ' + (i+1)"><output x-text="Number(g.direction).toFixed(1)"></output></div></td>
+              <td style="min-width:140px"><div class="range-row"><input type="range" min="0" max="1" step="0.1" x-model.number="g.intensity" :aria-label="'Intensity for group ' + (i+1)"><output x-text="Number(g.intensity).toFixed(1)"></output></div></td>
+              <td><button type="button" class="btn btn-ghost btn-icon btn-sm" @click="groups.splice(i,1)" :aria-label="'Remove group ' + (i+1)">{% icon "trash-2" %}</button></td>
+            </tr>
+          </template>
+        </tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="st-title">
+    <div class="card-header"><h2 id="st-title">{% icon "landmark" %} Stakeholders who will speak</h2><button type="button" class="btn btn-sm" @click="stakeholders.push({name:'', type:'organization', likely_position:0, influence:0.5})">{% icon "plus" %}Add stakeholder</button></div>
+    <div class="card-body">
+      <input type="hidden" name="stakeholders" :value="JSON.stringify(stakeholders)">
+      <div class="table-wrap"><table>
+        <thead><tr><th scope="col">Name</th><th scope="col">Type</th><th scope="col">Likely position</th><th scope="col">Influence</th><th scope="col"><span class="sr-only">Remove</span></th></tr></thead>
+        <tbody>
+          <template x-for="(s, i) in stakeholders" :key="i">
+            <tr>
+              <td><input type="text" x-model="s.name" :aria-label="'Stakeholder ' + (i+1)"></td>
+              <td><input type="text" x-model="s.type" :aria-label="'Type of stakeholder ' + (i+1)"></td>
+              <td style="min-width:150px"><div class="range-row"><input type="range" min="-1" max="1" step="0.1" x-model.number="s.likely_position" :aria-label="'Position of stakeholder ' + (i+1)"><output x-text="Number(s.likely_position).toFixed(1)"></output></div></td>
+              <td style="min-width:140px"><div class="range-row"><input type="range" min="0" max="1" step="0.1" x-model.number="s.influence" :aria-label="'Influence of stakeholder ' + (i+1)"><output x-text="Number(s.influence).toFixed(1)"></output></div></td>
+              <td><button type="button" class="btn btn-ghost btn-icon btn-sm" @click="stakeholders.splice(i,1)" :aria-label="'Remove stakeholder ' + (i+1)">{% icon "trash-2" %}</button></td>
+            </tr>
+          </template>
+        </tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <section class="card"><div class="card-body grid-2">
+    <div class="field"><label for="search_queries">{% icon "search" %} Web search queries <span class="muted">(one per line)</span></label><textarea id="search_queries" name="search_queries" rows="6">{{ b.search_queries|lines }}</textarea></div>
+    <div class="field"><label for="social_keywords">{% icon "hash" %} Social media keywords <span class="muted">(one per line)</span></label><textarea id="social_keywords" name="social_keywords" rows="6">{{ b.social_keywords|lines }}</textarea></div>
+    <div class="field"><label for="local_queries">Local-language queries</label><textarea id="local_queries" name="local_queries" rows="3">{{ b.local_queries|lines }}</textarea></div>
+    <div class="field"><label for="key_issues">Contested questions</label><textarea id="key_issues" name="key_issues" rows="3">{{ b.key_issues|lines }}</textarea></div>
+    <div class="field"><label for="hashtags_support">Hashtags supporters use</label><input id="hashtags_support" name="hashtags_support" value="{{ b.hashtags.support|join:' ' }}"></div>
+    <div class="field"><label for="hashtags_oppose">Hashtags opponents use</label><input id="hashtags_oppose" name="hashtags_oppose" value="{{ b.hashtags.oppose|join:' ' }}"></div>
+    <div class="field"><label for="hypotheses">Hypotheses to test</label><textarea id="hypotheses" name="hypotheses" rows="4">{{ b.hypotheses|lines }}</textarea></div>
+    <div class="field"><label for="risks_to_watch">Risks to watch</label><textarea id="risks_to_watch" name="risks_to_watch" rows="4">{{ b.risks_to_watch|lines }}</textarea></div>
+    <div class="field span-2"><label for="assumptions">Assumptions</label><textarea id="assumptions" name="assumptions" rows="3">{{ b.assumptions|lines }}</textarea></div>
+  </div></section>
+
+  <div class="cluster">
+    <button class="btn" type="submit">{% icon "check" %}Save changes</button>
+    <button class="btn btn-primary btn-lg" type="submit" name="approve" value="1">{% icon "arrow-right" %}Approve and start research</button>
+  </div>
+</form>
+{% endwith %}
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+  function briefEditor() {
+    var data = Baraza.readJSON("brief-data") || {};
+    return {
+      groups: (data.affected_groups || []).map(function (g) { return Object.assign({ group: "", impact: "", direction: 0, intensity: 0.5 }, g); }),
+      stakeholders: (data.stakeholders || []).map(function (s) { return Object.assign({ name: "", type: "organization", likely_position: 0, influence: 0.5 }, s); })
+    };
+  }
+</script>
+{% endblock %}

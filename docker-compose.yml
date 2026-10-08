@@ -1,14 +1,51 @@
+# Baraza with Docker Compose.
+#
+#   docker compose up -d                      # Baraza only (uses Ollama on your computer)
+#   docker compose --profile ollama up -d     # also run Ollama in a container
+#   docker compose --profile searxng up -d    # also run a private SearXNG search engine
+#
+# Then open http://localhost:8000
 services:
-  mirofish:
-    image: ghcr.io/666ghj/mirofish:latest
-    # 加速镜像（如拉取缓慢可替换上方地址）
-    # image: ghcr.nju.edu.cn/666ghj/mirofish:latest
-    container_name: mirofish
+  baraza:
+    build: .
+    image: baraza:latest
     env_file:
-      - .env
+      - path: .env
+        required: false
+    environment:
+      # Ollama running on the host machine (default). With the "ollama" profile use http://ollama:11434
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
-      - "3000:3000"
-      - "5001:5001"
-    restart: unless-stopped
+      - "8000:8000"
     volumes:
-      - ./backend/uploads:/app/backend/uploads
+      - baraza-data:/app/data
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ollama"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    restart: unless-stopped
+    # After it starts: docker compose exec ollama ollama pull llama3
+
+  searxng:
+    image: searxng/searxng:latest
+    profiles: ["searxng"]
+    ports:
+      - "8888:8080"
+    volumes:
+      - ./deploy/searxng:/etc/searxng:rw
+    environment:
+      SEARXNG_BASE_URL: http://localhost:8888/
+    restart: unless-stopped
+    # Then set SEARXNG_URL=http://searxng:8080 (inside compose) or http://localhost:8888 (outside)
+
+volumes:
+  baraza-data:
+  ollama-models:

@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% load baraza %}
+{% block title %}Rehearse public sentiment{% endblock %}
+{% block content %}
+<section class="hero" x-data="{ prompt: '', country: '{{ default_country }}', template: '', advanced: false }">
+  <div class="container stack-lg">
+    <div class="stack">
+      <p class="eyebrow">AI public-sentiment rehearsal for Africa</p>
+      <h1>Know how the public will react before you announce it.</h1>
+      <p class="lead">Describe a policy, action or reform. Baraza researches what people are already saying online, builds a synthetic population of citizens, lets them debate it on simulated X, Facebook and WhatsApp, and tells you who will support it, who will push back, and why.</p>
+    </div>
+
+    <form method="post" action="{% url 'projects:create' %}" class="prompt-box" aria-label="Start a new rehearsal">
+      {% csrf_token %}
+      <input type="hidden" name="template" :value="template">
+      <label for="prompt" class="sr-only">What do you want to rehearse?</label>
+      <textarea id="prompt" name="prompt" x-model="prompt" required minlength="15"
+        placeholder="e.g. The government plans to introduce a 2% levy on mobile money transfers above KES 1,000 to fund county hospitals. How will people react over the first two weeks?"></textarea>
+      <div class="prompt-options">
+        <div class="field">
+          <label for="country">Country</label>
+          <select id="country" name="country" x-model="country">
+            {% for code, name in countries %}<option value="{{ code }}">{{ name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label for="depth">Depth</label>
+          <select id="depth" name="depth">
+            <option value="quick">Quick: about 80 people</option>
+            <option value="standard" selected>Standard: about 160 people</option>
+            <option value="deep">Deep: about 300 people</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="language_style">Agent language</label>
+          <select id="language_style" name="language_style">
+            <option value="english">Plain English</option>
+            <option value="local" selected>English with local expressions</option>
+            <option value="mixed">Mixed with local language</option>
+          </select>
+        </div>
+        <div class="field" x-show="advanced" x-cloak>
+          <label for="focus_regions">Focus regions <span class="muted">(optional)</span></label>
+          <input id="focus_regions" name="focus_regions" type="text" placeholder="e.g. Nairobi, Kisumu, Coast">
+        </div>
+      </div>
+      <div class="prompt-options">
+        <button class="btn btn-ghost btn-sm" type="button" @click="advanced = !advanced" :aria-expanded="advanced.toString()">{% icon "sliders-horizontal" %}<span x-text="advanced ? 'Fewer options' : 'More options'">More options</span></button>
+        <div class="cluster" style="margin-left:auto">
+          <button class="btn btn-lg" type="submit" name="mode" value="steps">{% icon "list-checks" %}Step by step</button>
+          <button class="btn btn-primary btn-lg" type="submit" name="mode" value="autopilot">{% icon "wand-sparkles" %}Run full rehearsal</button>
+        </div>
+      </div>
+    </form>
+    <p class="small muted mb-0">“Run full rehearsal” does everything automatically (research, population, simulation, report). “Step by step” lets you review and edit each stage. Runs free on your computer with <a href="{% url 'core:about' %}#cost">Ollama + Llama 3</a>; a quick rehearsal takes minutes with a graphics card and up to an hour on a processor alone.</p>
+
+    <section aria-labelledby="templates-title" class="stack">
+      <div class="spread">
+        <h2 id="templates-title" class="mb-0">Start from a scenario</h2>
+        <span class="muted small">Hypothetical starting points: edit them before you run.</span>
+      </div>
+      <div class="grid-auto">
+        {% for s in scenarios %}
+        <button type="button" class="scenario-card" data-prompt="{{ s.prompt }}" data-key="{{ s.key }}" data-country="{{ s.country }}"
+                @click="prompt = $el.dataset.prompt; template = $el.dataset.key; country = $el.dataset.country; $nextTick(() => { const t = document.getElementById('prompt'); t.focus(); t.scrollIntoView({block: 'center'}); })">
+          <span class="cluster-sm"><span>{% icon s.icon %}</span><span class="badge">{{ s.category }}</span><span class="badge badge-outline">{{ s.country }}</span></span>
+          <strong>{{ s.title }}</strong>
+          <span class="small muted clamp-3">{{ s.prompt }}</span>
+        </button>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+</section>
+
+<section class="container stack-lg" style="padding-bottom: var(--space-8)">
+  <section aria-labelledby="how-title" class="stack">
+    <h2 id="how-title">How a rehearsal works</h2>
+    <ol class="pipeline">
+      <li>{% icon "sparkles" %}<h3>1. Brief</h3><p>Your prompt is rewritten into a precise research brief: who proposes it, who is affected and how.</p></li>
+      <li>{% icon "search" %}<h3>2. Deep research</h3><p>News, Reddit, YouTube comments, public X, Facebook and LinkedIn posts, Wikipedia and your documents.</p></li>
+      <li>{% icon "network" %}<h3>3. Knowledge graph</h3><p>Actors, alliances, arguments for and against, facts and rumours, organised for the agents (GraphRAG).</p></li>
+      <li>{% icon "users" %}<h3>4. Population</h3><p>Synthetic citizens from real demographics: boda boda riders, students, farmers, civil servants…</p></li>
+      <li>{% icon "messages-square" %}<h3>5. Simulation</h3><p>They post, argue, like, share and change their minds on X-, Facebook- and WhatsApp-style platforms.</p></li>
+      <li>{% icon "chart-line" %}<h3>6. Insights</h3><p>Who moves and why, which messages persuade or backfire, risks, and a ready-to-share report.</p></li>
+    </ol>
+  </section>
+
+  <section aria-labelledby="recent-title" class="stack">
+    <div class="spread">
+      <h2 id="recent-title" class="mb-0">Recent projects</h2>
+      {% if projects %}<a href="{% url 'projects:list' %}" class="btn btn-ghost btn-sm">All projects {% icon "arrow-right" %}</a>{% endif %}
+    </div>
+    {% if projects %}
+      <div class="grid-3">
+        {% for p in projects %}
+          {% include "projects/partials/project_card.html" with p=p %}
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        {% icon "flask-conical" %}
+        <h3>No rehearsals yet</h3>
+        <p>Type a policy above or pick a scenario to run your first simulation. Nothing leaves your computer unless you add a cloud model.</p>
+      </div>
+    {% endif %}
+  </section>
+</section>
+{% endblock %}

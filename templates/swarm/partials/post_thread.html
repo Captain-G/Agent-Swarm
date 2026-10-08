@@ -1,0 +1,6 @@
+{% load baraza %}
+<div class="modal-head"><h2 id="modal-title" class="mb-0" style="font-size:1.1rem">Conversation</h2><button class="btn btn-ghost btn-icon" type="button" onclick="Baraza.closeModal()" aria-label="Close">{% icon "x" %}</button></div>
+<div class="modal-body" style="padding:0">
+  {% with p=post %}{% include "swarm/partials/post.html" %}{% endwith %}
+  <div style="padding-left: var(--space-5)">{% for p in replies %}{% include "swarm/partials/post.html" %}{% empty %}<p class="muted" style="padding: var(--space-4)">No replies.</p>{% endfor %}</div>
+</div>

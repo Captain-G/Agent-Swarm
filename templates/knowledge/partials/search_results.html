@@ -1,0 +1,12 @@
+{% load baraza %}
+{% if q %}
+  {% if graph %}<div class="alert alert-info small">{% icon "network" %}<p class="mb-0"><strong>From the graph:</strong> {{ graph|join:"; " }}</p></div>{% endif %}
+  {% for c in results %}
+  <article class="stack-sm" style="padding: var(--space-3) 0; border-bottom:1px solid var(--color-border)">
+    <p class="small mb-0"><strong>{% if c.source %}{{ c.source.title|truncatechars:90 }}{% else %}Public posts{% endif %}</strong>{% if c.source.url %} · <a href="{{ c.source.url }}" target="_blank" rel="noopener noreferrer">source</a>{% endif %}</p>
+    <p class="small mb-0">{{ c.text|truncatechars:500 }}</p>
+  </article>
+  {% empty %}
+  <p class="muted">Nothing found for “{{ q }}”.</p>
+  {% endfor %}
+{% endif %}

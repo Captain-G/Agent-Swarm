@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% load baraza %}
+{% block title %}{{ project.title }}{% endblock %}
+{% block content %}
+<div class="container workspace">
+  <aside aria-label="Project steps">
+    <p class="eyebrow">Project</p>
+    <p class="mb-0" style="font-weight:700; line-height:1.3"><a href="{% url 'projects:overview' project.pk %}" style="color:inherit; text-decoration:none">{{ project.title|truncatechars:70 }}</a></p>
+    <p class="small muted">{{ project.country_profile.name }} · {{ project.depth_label }} depth</p>
+    <ol class="stepper">
+      <li>
+        <a href="{% url 'projects:overview' project.pk %}" {% if active_step == 'overview' %}aria-current="step"{% endif %}>
+          <span class="num">{% icon "house" "icon" %}</span><span class="step-text">Overview<small>Progress & results</small></span>
+        </a>
+      </li>
+      {% for step in project.step_status %}
+      <li class="{% if step.done %}done{% endif %}">
+        {% if step.available %}
+        <a href="{{ step.url }}" {% if active_step == step.key %}aria-current="step"{% endif %}>
+          <span class="num">{% if step.done %}{% icon "check" "icon" %}{% else %}{{ forloop.counter }}{% endif %}</span>
+          <span class="step-text">{{ step.label }}<small>{{ step.hint }}</small></span>
+        </a>
+        {% else %}
+        <span class="step locked" aria-disabled="true" title="Complete the previous step first">
+          <span class="num">{{ forloop.counter }}</span><span class="step-text">{{ step.label }}<small>{{ step.hint }}</small></span>
+        </span>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+  </aside>
+  <div class="stack-lg">
+    {% block workspace %}{% endblock %}
+  </div>
+</div>
+{% endblock %}

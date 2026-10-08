@@ -1,0 +1,81 @@
+{% load static baraza %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <meta name="description" content="Baraza rehearses how the public will react online to a policy, action or reform, using AI agents grounded in real research.">
+  <meta name="color-scheme" content="light dark">
+  <title>{% block title %}Rehearse public sentiment{% endblock %} · {{ APP_NAME }}</title>
+  <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
+  <link rel="stylesheet" href="{% static 'css/baraza.css' %}">
+  <script src="{% static 'js/app.js' %}"></script>
+  <script defer src="{% static 'vendor/htmx-2.0.11.min.js' %}"></script>
+  <script defer src="{% static 'vendor/alpine-3.17.4.min.js' %}"></script>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <header class="app-header" x-data="{ open: false }">
+    <div class="container">
+      <a class="brand" href="{% url 'core:home' %}" aria-label="{{ APP_NAME }} home">
+        {% include "partials/logo.html" %}
+        <span>{{ APP_NAME }}</span>
+        <small>{{ APP_TAGLINE }}</small>
+      </a>
+      {% with path=request.path %}
+      <nav class="main-nav" aria-label="Main">
+        <a href="{% url 'core:home' %}" {% if path == '/' %}aria-current="page"{% endif %}>{% icon "house" %}Home</a>
+        <a href="{% url 'projects:list' %}" {% if '/projects/' in path or '/p/' in path or '/r/' in path %}aria-current="page"{% endif %}>{% icon "layers" %}Projects</a>
+        <a href="{% url 'research:catalog' %}" {% if path == '/sources/' %}aria-current="page"{% endif %}>{% icon "database" %}Data sources</a>
+        <a href="{% url 'core:settings' %}" {% if '/settings/' in path %}aria-current="page"{% endif %}>{% icon "settings" %}Settings</a>
+        <a href="{% url 'core:about' %}" {% if '/about/' in path %}aria-current="page"{% endif %}>{% icon "book-open" %}How it works</a>
+      </nav>
+      {% endwith %}
+      <div class="header-actions">
+        <span hx-get="{% url 'core:status_pill' %}" hx-trigger="load" hx-swap="outerHTML">
+          <a class="status-pill is-warn" href="{% url 'core:settings' %}"><span class="dot"></span><span class="label">Checking AI…</span></a>
+        </span>
+        <button class="btn btn-ghost btn-icon" type="button" onclick="Baraza.toggleTheme()" aria-label="Switch light or dark theme">{% icon "moon" %}</button>
+        <button class="btn btn-ghost btn-icon menu-button" type="button" @click="open = !open" :aria-expanded="open.toString()" aria-controls="mobile-nav" aria-label="Open menu">{% icon "menu" %}</button>
+      </div>
+    </div>
+    <div class="container" x-show="open" x-cloak @click.outside="open = false">
+      <nav class="mobile-nav" id="mobile-nav" aria-label="Main (mobile)">
+        <a href="{% url 'core:home' %}">{% icon "house" %}Home</a>
+        <a href="{% url 'projects:list' %}">{% icon "layers" %}Projects</a>
+        <a href="{% url 'research:catalog' %}">{% icon "database" %}Data sources</a>
+        <a href="{% url 'core:settings' %}">{% icon "settings" %}Settings</a>
+        <a href="{% url 'core:about' %}">{% icon "book-open" %}How it works</a>
+        {% if user.is_authenticated %}<form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn btn-ghost" type="submit">{% icon "x" %}Sign out</button></form>{% endif %}
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="app-footer">
+    <div class="container spread">
+      <p class="mb-0">{{ APP_NAME }} {{ APP_VERSION }} · Simulated people, not real ones. Use results to prepare and listen better, never to manipulate.</p>
+      <p class="mb-0"><a href="{% url 'core:about' %}#ethics">Ethics</a> · <a href="{% url 'core:jobs' %}">Background tasks</a> · <a href="{% url 'core:health' %}">Status</a></p>
+    </div>
+  </footer>
+
+  <dialog id="modal" class="modal" aria-labelledby="modal-title">
+    <div id="modal-content"></div>
+  </dialog>
+
+  <div class="toast-region" role="status" aria-live="polite">
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags|default:'info' }}" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 9000)">
+        {% if message.tags == 'error' %}{% icon "circle-x" %}{% elif message.tags == 'success' %}{% icon "circle-check" %}{% elif message.tags == 'warning' %}{% icon "triangle-alert" %}{% else %}{% icon "info" %}{% endif %}
+        <p>{{ message }}</p>
+        <button class="btn btn-ghost btn-icon btn-sm" type="button" @click="show = false" aria-label="Dismiss">{% icon "x" %}</button>
+      </div>
+    {% endfor %}
+  </div>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

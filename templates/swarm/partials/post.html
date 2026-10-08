@@ -1,0 +1,25 @@
+{% load baraza %}
+<article class="post {% if p.source == 'intervention' %}is-intervention{% endif %} {% if p.is_misinfo %}is-misinfo{% endif %}" aria-label="Post by {{ p.author.name }}">
+  <span class="avatar is-{{ p.stance|stance_class }} {% if p.author.kind == 'institution' or p.author.kind == 'media' %}is-institution{% endif %}" aria-hidden="true">{{ p.author.name|initials }}</span>
+  <div>
+    <div class="post-head">
+      <button type="button" class="btn btn-ghost name" style="padding:0; min-height:auto" hx-get="{% url 'swarm:agent_detail' run.project_id p.author_id %}?run={{ run.pk }}" hx-target="#modal-content">{{ p.author.name }}</button>
+      <span class="handle">@{{ p.author.handle }}</span>
+      <span class="time">· {{ p.sim_time|date:"D H:i" }}</span>
+      {% if p.author.kind != 'citizen' %}<span class="badge">{{ p.author.get_kind_display }}</span>{% endif %}
+      {% if p.source == 'llm' %}<span class="badge badge-info" title="Written by the language model">AI</span>{% endif %}
+      {% if p.source == 'intervention' %}<span class="badge badge-warning">Event</span>{% endif %}
+      {% if p.is_misinfo %}<span class="badge badge-danger">{% icon "shield-alert" %}Rumour</span>{% endif %}
+    </div>
+    {% if p.parent %}<p class="post-reply-to mb-0">Replying to @{{ p.parent.author.handle }}</p>{% endif %}
+    <p class="post-body">{{ p.text|social_text }}</p>
+    <div class="post-meta">
+      <span title="Stance">{% stance_badge p.stance %}</span>
+      <span>{% icon "heart" %}<span class="sr-only">Likes</span>{{ p.likes }}</span>
+      <span>{% icon "repeat-2" %}<span class="sr-only">Reposts</span>{{ p.reposts }}</span>
+      {% if p.replies %}<button type="button" class="btn btn-ghost btn-sm" style="min-height:auto; padding:0 4px" hx-get="{% url 'swarm:post_thread' run.pk p.pk %}" hx-target="#modal-content">{% icon "reply" %}{{ p.replies }} repl{{ p.replies|pluralize:"y,ies" }}</button>{% endif %}
+      <span>{% icon "eye" %}<span class="sr-only">Views</span>{{ p.views }}</span>
+      {% if p.persuaded %}<span title="People who moved toward this post's view">{% icon "trending-up" %}{{ p.persuaded }} persuaded</span>{% endif %}
+    </div>
+  </div>
+</article>

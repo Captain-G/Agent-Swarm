@@ -1,0 +1,9 @@
+{% load baraza %}
+<div class="conversation" id="conversation" aria-live="polite">
+  {% for m in interview.messages %}
+    <div class="message {{ m.role }}">{% if m.role == 'assistant' %}<span class="tiny" style="display:block; font-weight:700">{% if agent %}{{ agent.name }}{% else %}Observer{% endif %}</span>{% endif %}{{ m.content|linebreaksbr }}</div>
+  {% empty %}
+    <p class="muted small">{% if agent %}Ask {{ agent.name }} anything: how they feel, what would change their mind, what they heard.{% else %}Ask the Observer about the whole simulation: “Which group is most opposed and why?”, “What message would calm boda boda riders?”{% endif %}</p>
+  {% endfor %}
+</div>
+<script>(function(){ var c = document.getElementById("conversation"); if (c) c.scrollTop = c.scrollHeight; })();</script>

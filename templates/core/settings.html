@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% load baraza humanize %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<div class="container stack-lg" style="padding: var(--space-6) var(--space-4) var(--space-8)">
+  <div class="page-head"><div class="stack-sm"><p class="eyebrow">Configuration</p><h1>Settings</h1><p class="muted mb-0">Changes here override the <code>.env</code> file and take effect immediately. Keys are stored in your local database.</p></div></div>
+
+  <section class="card" aria-labelledby="test-title">
+    <div class="card-header"><h2 id="test-title">{% icon "cpu" %} Test the AI connection</h2></div>
+    <div class="card-body stack">
+      <p class="small muted mb-0">Checks that the model answers, lists your installed models and whether embeddings are available.</p>
+      <div><button class="btn btn-primary" type="button" hx-post="{% url 'core:test_llm' %}" hx-target="#llm-test" hx-indicator="#llm-test-spin">{% icon "zap" %}Test now <span id="llm-test-spin" class="htmx-indicator spinner" aria-hidden="true"></span></button></div>
+      <div id="llm-test" aria-live="polite"></div>
+      <details class="disclosure"><summary>{% icon "lightbulb" %}Recommended free setups</summary><div class="disclosure-body prose small">
+        <ul>
+          <li><strong>Fully local and free (default):</strong> install Ollama, run <code>ollama pull llama3</code>. Optional: <code>ollama pull nomic-embed-text</code> for semantic search, and a small fast model such as <code>llama3.2:3b</code> as the “fast model” for agent posts.</li>
+          <li><strong>Better writing, still almost free:</strong> keep Ollama for agents, add a free Groq or OpenRouter key under “OpenAI-compatible” and tick “Use the hosted model only for briefs, dossiers and reports”.</li>
+          <li><strong>No AI at all:</strong> choose “None”. Every step still works with transparent heuristics and template posts (lower quality).</li>
+        </ul>
+      </div></details>
+    </div>
+  </section>
+
+  <form method="post" class="stack-lg" autocomplete="off">
+    {% csrf_token %}
+    {% for group in groups %}
+    <section class="card" aria-labelledby="g{{ forloop.counter }}">
+      <div class="card-header"><h2 id="g{{ forloop.counter }}">{{ group.title }}</h2></div>
+      <div class="card-body stack">
+        {% if group.help %}<p class="small muted mb-0">{{ group.help }}</p>{% endif %}
+        <div class="grid-2">
+          {% for f in group.fields %}
+            {% if f.kind == 'checkbox' %}
+              <label class="check"><input type="checkbox" name="{{ f.key }}" {% if f.checked %}checked{% endif %}><span>{{ f.label }}</span></label>
+            {% elif f.kind == 'select' %}
+              <div class="field"><label for="{{ f.key }}">{{ f.label }}</label><select id="{{ f.key }}" name="{{ f.key }}">{% for v, l in f.choices %}<option value="{{ v }}" {% if v == f.value %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+            {% elif f.kind == 'password' %}
+              <div class="field"><label for="{{ f.key }}">{{ f.label }}</label><input id="{{ f.key }}" name="{{ f.key }}" type="password" value="{{ f.value }}" placeholder="{% if f.is_set %}Saved - type to replace{% else %}Not set{% endif %}" autocomplete="new-password"><p class="help">{% if f.is_set %}A key is saved. Type <code>__clear__</code> to remove it.{% else %}Optional.{% endif %}</p></div>
+            {% else %}
+              <div class="field"><label for="{{ f.key }}">{{ f.label }}</label><input id="{{ f.key }}" name="{{ f.key }}" type="{% if f.kind == 'number' %}number{% else %}text{% endif %}" value="{{ f.value|default_if_none:'' }}"></div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+    {% endfor %}
+    <div class="cluster"><button class="btn btn-primary btn-lg" type="submit">{% icon "check" %}Save settings</button><a class="btn" href="{% url 'research:catalog' %}">{% icon "database" %}About data sources</a></div>
+  </form>
+
+  {% if usage %}
+  <section class="card" aria-labelledby="usage-title">
+    <div class="card-header"><h2 id="usage-title">{% icon "wallet" %} AI usage (all projects)</h2></div>
+    <div class="card-body"><div class="table-wrap"><table>
+      <thead><tr><th scope="col">Purpose</th><th scope="col">Model</th><th scope="col" class="num">Calls</th><th scope="col" class="num">From cache</th><th scope="col" class="num">Errors</th><th scope="col" class="num">Tokens</th><th scope="col" class="num">Time</th><th scope="col" class="num">Cost</th></tr></thead>
+      <tbody>{% for u in usage %}<tr><td>{{ u.purpose|cut:"_" }}</td><td class="small">{{ u.provider }}:{{ u.model }}</td><td class="num">{{ u.calls|intcomma }}</td><td class="num">{{ u.cached_calls|intcomma }}</td><td class="num">{{ u.errors }}</td><td class="num">{{ u.prompt_tokens|add:u.completion_tokens|intcomma }}</td><td class="num">{{ u.seconds|duration }}</td><td class="num">{% if u.cost_usd %}${{ u.cost_usd|floatformat:4 }}{% else %}free{% endif %}</td></tr>{% endfor %}</tbody>
+    </table></div></div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

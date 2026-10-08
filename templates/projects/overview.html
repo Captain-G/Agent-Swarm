@@ -1,0 +1,111 @@
+{% extends "projects/workspace.html" %}
+{% load baraza humanize %}
+{% block workspace %}
+<div class="page-head">
+  <div class="stack-sm">
+    <p class="eyebrow">Overview · {{ country.name }}</p>
+    <h1>{{ project.title }}</h1>
+    <p class="muted mb-0">{{ project.question }}</p>
+  </div>
+  <div class="cluster">
+    {% with step=project.next_step %}{% if step and not job %}<a class="btn" href="{{ step.url }}">{% icon "arrow-right" %}Continue: {{ step.label }}</a>{% endif %}{% endwith %}
+    {% if not job %}
+    <form method="post" action="{% url 'projects:autopilot' project.pk %}">{% csrf_token %}<button class="btn btn-primary" type="submit">{% icon "wand-sparkles" %}Run everything automatically</button></form>
+    {% endif %}
+  </div>
+</div>
+
+{% if project.brief.safety.concerns %}
+<div class="alert alert-warning">{% icon "shield-alert" %}<p><strong>Use with care:</strong> {{ project.brief.safety.concerns|join:", " }}. Baraza is for rehearsal and preparedness, not for manipulating real people.</p></div>
+{% endif %}
+
+{% if job %}
+<section aria-labelledby="job-title" class="stack-sm">
+  <h2 id="job-title" class="section-title">{% icon "loader-circle" %}In progress</h2>
+  {% include "core/partials/job_status.html" with job=job %}
+</section>
+{% endif %}
+
+{% with run=runs.0 %}
+{% if run and run.status == 'completed' %}
+<section aria-labelledby="results-title" class="stack">
+  <div class="spread"><h2 id="results-title" class="mb-0">Latest results</h2><span class="muted small">{{ run.name }}</span></div>
+  <div class="grid-4">
+    <div class="stat"><div class="label">{% icon "thumbs-down" %}Oppose at the end</div><div class="value">{{ run.summary.end_oppose|pct }}</div><div class="delta {% if run.summary.end_oppose > run.summary.start_oppose %}delta-down{% else %}delta-up{% endif %}">from {{ run.summary.start_oppose|pct }}</div></div>
+    <div class="stat"><div class="label">{% icon "heart" %}Support at the end</div><div class="value">{{ run.summary.end_support|pct }}</div><div class="delta {% if run.summary.end_support >= run.summary.start_support %}delta-up{% else %}delta-down{% endif %}">from {{ run.summary.start_support|pct }}</div></div>
+    <div class="stat"><div class="label">{% icon "trending-up" %}Average opinion</div><div class="value">{{ run.summary.end_mean|signed }}</div><div class="delta muted">{{ run.summary.trend|capfirst }} ({{ run.summary.change|signed }})</div></div>
+    <div class="stat"><div class="label">{% icon "flame" %}Peak mobilisation</div><div class="value">{{ run.summary.peak_mobilisation|pct }}</div><div class="delta muted">angry and strongly opposed</div></div>
+  </div>
+  <div class="cluster">
+    <a class="btn btn-primary" href="{% url 'insights:run' run.pk %}">{% icon "chart-line" %}Open insights</a>
+    {% if latest_report %}<a class="btn" href="{% url 'insights:report' latest_report.run_id %}">{% icon "file-text" %}Read the report</a>{% endif %}
+    <a class="btn" href="{% url 'insights:talk' run.pk %}">{% icon "message-circle" %}Interview agents</a>
+    <a class="btn" href="{% url 'swarm:run_detail' run.pk %}">{% icon "messages-square" %}Replay the conversation</a>
+  </div>
+</section>
+{% endif %}
+{% endwith %}
+
+<section aria-labelledby="steps-title" class="stack">
+  <h2 id="steps-title">Steps</h2>
+  <div class="grid-3">
+    {% for step in project.step_status %}
+    <div class="card"><div class="card-body stack-sm">
+      <div class="spread"><strong>{{ forloop.counter }}. {{ step.label }}</strong>{% if step.done %}<span class="badge badge-success">{% icon "check" %}Done</span>{% elif step.available %}<span class="badge badge-info">Ready</span>{% else %}<span class="badge">Waiting</span>{% endif %}</div>
+      <p class="small muted mb-0">{{ step.hint }}</p>
+      {% if step.available %}<a class="btn btn-sm" href="{{ step.url }}">{% if step.done %}Review{% else %}Open{% endif %} {% icon "arrow-right" %}</a>{% endif %}
+    </div></div>
+    {% endfor %}
+  </div>
+</section>
+
+{% if dossier %}
+<section class="card" aria-labelledby="dossier-title">
+  <div class="card-header"><h2 id="dossier-title">{% icon "book-open" %} What the research found</h2><a class="btn btn-sm btn-ghost" href="{% url 'knowledge:index' project.pk %}">Full dossier {% icon "arrow-right" %}</a></div>
+  <div class="card-body"><p class="mb-0">{{ dossier.summary|truncatewords:120 }}</p></div>
+</section>
+{% endif %}
+
+<div class="grid-2">
+  <section class="card" aria-labelledby="cost-title">
+    <div class="card-header"><h2 id="cost-title">{% icon "wallet" %} Cost and AI usage</h2></div>
+    <div class="card-body">
+      <dl class="kv">
+        <dt>AI calls</dt><dd>{{ totals.calls|intcomma }}</dd>
+        <dt>Tokens</dt><dd>{{ totals.tokens|intcomma }}</dd>
+        <dt>AI time</dt><dd>{{ totals.seconds|duration|default:"0s" }}</dd>
+        <dt>Money spent</dt><dd>{% if totals.cost %}${{ totals.cost|floatformat:4 }}{% else %}<strong>Free</strong> (local model){% endif %}</dd>
+      </dl>
+    </div>
+  </section>
+  <section class="card" aria-labelledby="history-title">
+    <div class="card-header"><h2 id="history-title">{% icon "history" %} Recent tasks</h2><a class="btn btn-sm btn-ghost" href="{% url 'core:jobs' %}">All {% icon "arrow-right" %}</a></div>
+    <div class="card-body">
+      {% if last_jobs %}
+      <ul class="list-plain divider-list">
+        {% for j in last_jobs %}<li class="spread small"><span>{{ j.label|truncatechars:48 }}</span><span class="badge {% if j.status == 'succeeded' %}badge-success{% elif j.status == 'failed' %}badge-danger{% elif j.is_active %}badge-info{% endif %}">{{ j.get_status_display }}</span></li>{% endfor %}
+      </ul>
+      {% else %}<p class="muted mb-0">No tasks yet.</p>{% endif %}
+    </div>
+  </section>
+</div>
+
+<details class="disclosure">
+  <summary>{% icon "settings" %}Project settings, export and delete</summary>
+  <div class="disclosure-body stack">
+    <form method="post" action="{% url 'projects:settings' project.pk %}" class="grid-2">
+      {% csrf_token %}
+      <div class="field"><label for="ps-title">Title</label><input id="ps-title" name="title" value="{{ project.title }}"></div>
+      <div class="field"><label for="ps-regions">Focus regions</label><input id="ps-regions" name="focus_regions" value="{{ project.focus_regions|join:', ' }}" list="region-options"><p class="help">Comma-separated; leave empty for the whole country.</p></div>
+      <datalist id="region-options">{% for r in country.regions %}<option value="{{ r.name }}">{% endfor %}</datalist>
+      <div class="field"><label for="ps-depth">Depth</label><select id="ps-depth" name="depth">{% for v, l in project.Depth.choices %}<option value="{{ v }}" {% if v == project.depth %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+      <div class="field"><label for="ps-lang">Agent language</label><select id="ps-lang" name="language_style">{% for v, l in project.LanguageStyle.choices %}<option value="{{ v }}" {% if v == project.language_style %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+      <div><button class="btn" type="submit">{% icon "check" %}Save settings</button></div>
+    </form>
+    <div class="cluster">
+      <a class="btn" href="{% url 'projects:export' project.pk %}">{% icon "download" %}Export everything (JSON)</a>
+      <form method="post" action="{% url 'projects:delete' project.pk %}" onsubmit="return confirm('Delete this project and all its data? This cannot be undone.');">{% csrf_token %}<button class="btn btn-danger" type="submit">{% icon "trash-2" %}Delete project</button></form>
+    </div>
+  </div>
+</details>
+{% endblock %}

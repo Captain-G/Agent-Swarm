@@ -1,0 +1,5 @@
+{% load baraza %}<a class="status-pill {% if info.ok %}{% elif info.provider == 'none' %}is-off{% else %}is-warn{% endif %}" href="{% url 'core:settings' %}" title="{{ info.detail }}">
+  <span class="dot" aria-hidden="true"></span>
+  <span class="sr-only">AI status:</span>
+  <span class="label">{% if info.ok %}{% if info.provider == 'fake' %}Demo mode{% else %}{{ info.model }} · {% if info.provider == 'ollama' %}local{% else %}cloud{% endif %}{% endif %}{% else %}AI not connected{% endif %}</span>
+</a>

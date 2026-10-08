@@ -1,0 +1,12 @@
+{% extends "projects/workspace.html" %}
+{% load baraza %}
+{% block workspace %}
+<div class="page-head"><div class="stack-sm"><p class="eyebrow">Step 6 · Insights</p><h1>Results</h1></div></div>
+{% if runs %}
+<div class="table-wrap"><table><thead><tr><th scope="col">Run</th><th scope="col">Opinion</th><th scope="col"><span class="sr-only">Open</span></th></tr></thead><tbody>
+{% for r in runs %}<tr><td><strong>{{ r.name }}</strong><div class="tiny muted">{{ r.created_at|date:"d M H:i" }}</div></td><td>{{ r.summary.start_mean|signed }} → {{ r.summary.end_mean|signed }}</td><td><a class="btn btn-sm" href="{% url 'insights:run' r.pk %}">Open</a></td></tr>{% endfor %}
+</tbody></table></div>
+{% else %}
+<div class="empty-state">{% icon "chart-line" %}<h3>No finished runs yet</h3><p>Run a simulation to see insights here.</p><a class="btn btn-primary" href="{% url 'swarm:runs' project.pk %}">{% icon "play" %}Simulate</a></div>
+{% endif %}
+{% endblock %}
