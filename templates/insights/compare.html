@@ -1,0 +1,44 @@
+{% extends "projects/workspace.html" %}
+{% load static baraza %}
+{% block title %}Compare runs · {{ project.title }}{% endblock %}
+{% block head %}<script defer src="{% static 'vendor/chart-4.5.1.umd.min.js' %}"></script>{% endblock %}
+{% block workspace %}
+<div class="page-head"><div class="stack-sm"><p class="eyebrow">Step 6 · Compare scenarios</p><h1>What difference does it make?</h1><p class="muted mb-0">Put two runs side by side, e.g. a baseline and a run with a concession or a new message.</p></div></div>
+<form method="get" class="cluster card card-body">
+  <div class="field"><label for="ca">Run A (baseline)</label><select id="ca" name="a">{% for r in runs %}<option value="{{ r.pk }}" {% if a and r.pk == a.pk %}selected{% endif %}>{{ r.name }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="cb">Run B (scenario)</label><select id="cb" name="b">{% for r in runs %}<option value="{{ r.pk }}" {% if b and r.pk == b.pk %}selected{% endif %}>{{ r.name }}</option>{% endfor %}</select></div>
+  <button class="btn btn-primary" type="submit" style="align-self:end">{% icon "git-compare-arrows" %}Compare</button>
+</form>
+{% if data %}
+<div class="grid-4">
+  {% for label, pair in data.final.items %}
+  <div class="stat"><div class="label">{{ label|capfirst }} (end)</div><div class="value">{% if label == 'mean' or label == 'polarisation' %}{{ pair.1|floatformat:2 }}{% else %}{{ pair.1|pct }}{% endif %}</div><div class="delta muted">Run B shown · run A: {% if label == 'mean' or label == 'polarisation' %}{{ pair.0|floatformat:2 }}{% else %}{{ pair.0|pct }}{% endif %}</div></div>
+  {% endfor %}
+</div>
+{{ data|json_script:"cmp-data" }}
+<section class="card"><div class="card-header"><h2>Average opinion over time</h2></div><div class="card-body"><div class="chart-box tall" id="cmp-mean"></div></div></section>
+<section class="card"><div class="card-header"><h2>Share opposed over time</h2></div><div class="card-body"><div class="chart-box" id="cmp-oppose"></div></div></section>
+<section class="card"><div class="card-header"><h2>Biggest differences by segment</h2></div><div class="card-body"><div class="table-wrap"><table><thead><tr><th scope="col">Segment</th><th scope="col" class="num">A</th><th scope="col" class="num">B</th><th scope="col" class="num">Difference</th></tr></thead><tbody>{% for r in data.segments %}<tr><th scope="row">{{ r.name }}</th><td class="num">{{ r.a|signed }}</td><td class="num">{{ r.b|signed }}</td><td class="num"><span class="heat" style="{{ r.diff|heat_style }}">{{ r.diff|signed }}</span></td></tr>{% endfor %}</tbody></table></div>
+<p class="help">Single runs include chance variation. For reliable conclusions run a Monte Carlo ensemble of the scenario on the Simulate page.</p></div></section>
+{% elif runs|length < 2 %}
+<div class="empty-state">{% icon "git-compare-arrows" %}<h3>You need two finished runs</h3><p>Create a variant of a run with different events, then come back.</p><a class="btn btn-primary" href="{% url 'swarm:runs' project.pk %}">{% icon "play" %}Simulate</a></div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if data %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    var d = Baraza.readJSON("cmp-data");
+    var labels = d.a.labels.length >= d.b.labels.length ? d.a.labels : d.b.labels;
+    Baraza.lineChart(document.getElementById("cmp-mean"), labels, [
+      { label: "A: {{ a.name|escapejs }}", data: d.a.series.mean, color: "--stance-neutral", dash: [6, 4] },
+      { label: "B: {{ b.name|escapejs }}", data: d.b.series.mean, color: "--color-accent" }
+    ], { yMin: -1, yMax: 1 });
+    Baraza.lineChart(document.getElementById("cmp-oppose"), labels, [
+      { label: "A oppose", data: d.a.series.oppose, color: "--stance-neutral", dash: [6, 4] },
+      { label: "B oppose", data: d.b.series.oppose, color: "--stance-oppose" }
+    ], { percent: true, yMin: 0, yMax: 1 });
+  });
+</script>
+{% endif %}
+{% endblock %}

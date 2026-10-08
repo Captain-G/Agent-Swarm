@@ -1,0 +1,29 @@
+{% load baraza %}
+<div class="card" id="job-{{ job.pk }}"
+     {% if job.is_active %}hx-get="{% url 'core:job_status' job.pk %}{% if compact %}?compact=1{% endif %}" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}
+     aria-live="polite">
+  <div class="card-body stack-sm">
+    <div class="spread">
+      <div class="cluster-sm">
+        {% if job.is_active %}<span class="spinner" aria-hidden="true"></span>{% elif job.status == 'succeeded' %}<span class="badge badge-success">{% icon "circle-check" %}Done</span>{% elif job.status == 'failed' %}<span class="badge badge-danger">{% icon "circle-x" %}Failed</span>{% else %}<span class="badge badge-warning">{{ job.get_status_display }}</span>{% endif %}
+        <strong>{{ job.label }}</strong>
+      </div>
+      <div class="cluster-sm">
+        {% if job.duration_seconds %}<span class="muted small">{{ job.duration_seconds|duration }}</span>{% endif %}
+        {% if job.is_active %}
+          <form method="post" action="{% url 'core:job_cancel' job.pk %}" hx-post="{% url 'core:job_cancel' job.pk %}" hx-target="#job-{{ job.pk }}" hx-swap="outerHTML">{% csrf_token %}<button class="btn btn-sm btn-danger" type="submit">{% icon "square" %}Stop</button></form>
+        {% endif %}
+      </div>
+    </div>
+    <div class="progress {% if job.is_active and job.progress < 1 %}is-indeterminate{% endif %}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ job.progress|floatformat:0 }}" aria-label="{{ job.label }} progress"><span style="width: {{ job.progress|floatformat:0 }}%"></span></div>
+    <p class="mb-0 small"><strong>{{ job.stage|default:"Waiting to start" }}</strong>{% if job.message %} · <span class="muted">{{ job.message }}</span>{% endif %}</p>
+    {% if job.status == 'failed' %}<div class="alert alert-danger small"><p class="mb-0">{{ job.error|truncatechars:400|linebreaksbr }}</p></div>{% endif %}
+    {% if job.status == 'succeeded' and not compact %}<p class="small mb-0"><a href="" onclick="window.location.reload(); return false;">Refresh the page to see the results</a></p>{% endif %}
+    {% if job.log and not compact %}
+      <details {% if job.is_active %}open{% endif %}>
+        <summary class="small muted">Activity log ({{ job.log|length }})</summary>
+        <ul class="job-log">{% for line in job.log reversed %}{% if forloop.counter <= 60 %}<li class="{{ line.1 }}">{{ line.0 }} {{ line.2 }}</li>{% endif %}{% endfor %}</ul>
+      </details>
+    {% endif %}
+  </div>
+</div>

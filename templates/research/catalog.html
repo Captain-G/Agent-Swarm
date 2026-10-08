@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load baraza %}
+{% block title %}Data sources{% endblock %}
+{% block content %}
+<div class="container stack-lg" style="padding: var(--space-6) var(--space-4) var(--space-8)">
+  <div class="page-head">
+    <div class="stack-sm"><p class="eyebrow">Free first, then the lowest cost</p><h1>Data sources</h1>
+      <p class="muted mb-0">Where Baraza looks for evidence, what each source costs, and how to switch it on. Free sources work out of the box; add keys in <a href="{% url 'core:settings' %}">Settings</a> to unlock more.</p></div>
+  </div>
+  <div class="alert alert-info">{% icon "shield-check" %}<div><p><strong>Respectful by design.</strong> Baraza identifies itself honestly, respects robots.txt, rate-limits every site, never logs in to personal accounts, and anonymises the authors of public posts by default. For X, Facebook, LinkedIn, TikTok and Instagram (no free API) it uses what search engines publicly index; full data needs a paid provider or academic access (Meta Content Library, TikTok Research API).</p></div></div>
+  {% for tier in tiers %}
+  <section class="stack" aria-labelledby="tier-{{ tier.key }}">
+    <h2 id="tier-{{ tier.key }}">{{ tier.label }}</h2>
+    <div class="grid-2">
+      {% for c in tier.items %}
+      <div class="card"><div class="card-body stack-sm">
+        <div class="spread"><strong>{{ c.name }}</strong>{% if c.configured %}<span class="badge badge-success">{% icon "circle-check" %}Ready</span>{% else %}<span class="badge badge-warning">Needs setup</span>{% endif %}</div>
+        <p class="small mb-0">{{ c.description }}</p>
+        <dl class="kv small">
+          <dt>Setup</dt><dd>{{ c.setup }}</dd>
+          {% if c.price_note %}<dt>Cost</dt><dd>{{ c.price_note }}</dd>{% endif %}
+          {% if c.terms %}<dt>Terms</dt><dd>{{ c.terms }}</dd>{% endif %}
+        </dl>
+        {% if c.docs_url %}<a class="small" href="{{ c.docs_url }}" target="_blank" rel="noopener noreferrer">{% icon "external-link" %} Documentation</a>{% endif %}
+      </div></div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+</div>
+{% endblock %}

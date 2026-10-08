@@ -1,0 +1,4 @@
+# Extra packages for a shared server deployment (optional).
+-r requirements.txt
+gunicorn>=22.0
+psycopg[binary]>=3.1

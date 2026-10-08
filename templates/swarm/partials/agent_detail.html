@@ -1,0 +1,40 @@
+{% load baraza %}
+<div class="modal-head">
+  <div class="cluster-sm">
+    <span class="avatar is-{{ agent.initial_stance|stance_class }} {% if agent.kind == 'institution' or agent.kind == 'media' %}is-institution{% endif %}" aria-hidden="true">{{ agent.name|initials }}</span>
+    <div><h2 id="modal-title" class="mb-0" style="font-size:1.15rem">{{ agent.name }}</h2><span class="small muted">@{{ agent.handle }} · {{ agent.archetype_label }}</span></div>
+  </div>
+  <button class="btn btn-ghost btn-icon" type="button" onclick="Baraza.closeModal()" aria-label="Close">{% icon "x" %}</button>
+</div>
+<div class="modal-body stack">
+  <div class="cluster-sm"><span class="badge badge-info">{{ agent.get_kind_display }}</span>{% if agent.kind != 'institution' and agent.kind != 'media' %}<span class="badge badge-outline">Synthetic person</span>{% else %}<span class="badge badge-outline">Simulated account</span>{% endif %}{% if agent.entity %}<span class="badge">From the knowledge graph</span>{% endif %}</div>
+  {% if agent.bio %}<p class="mb-0"><em>“{{ agent.bio }}”</em></p>{% endif %}
+  <p class="small mb-0">{{ agent.persona }}</p>
+  <dl class="kv small">
+    {% if agent.age %}<dt>Age · gender</dt><dd>{{ agent.age }} · {{ agent.gender }}</dd>{% endif %}
+    <dt>Lives in</dt><dd>{{ agent.region }}{% if agent.region_group %} ({{ agent.region_group }}){% endif %} · {{ agent.urban|yesno:"urban,rural" }}</dd>
+    {% if agent.occupation %}<dt>Occupation</dt><dd>{{ agent.occupation }}</dd>{% endif %}
+    {% if agent.income %}<dt>Income · education</dt><dd>{{ agent.income|cut:"_" }} · {{ agent.education }}</dd>{% endif %}
+    {% if agent.leaning %}<dt>Politics</dt><dd>{{ country.leaning_labels|get_item:agent.leaning }}</dd>{% endif %}
+    {% if agent.concerns %}<dt>Cares about</dt><dd>{{ agent.concerns|join:", " }}</dd>{% endif %}
+    <dt>Uses</dt><dd>{% for k, v in agent.platforms.items %}{% if v %}{{ k|capfirst }} {{ v|pct }}{% if not forloop.last %} · {% endif %}{% endif %}{% endfor %}</dd>
+  </dl>
+  <div>
+    <p class="label">Opinion on the topic</p>
+    <div class="stance-bar" role="img" aria-label="Starting opinion {{ agent.initial_stance|signed }}{% if state %}, now {{ state.stance|signed }}{% endif %}">
+      <span class="marker {% if state %}initial{% endif %}" style="left: {{ agent.initial_stance|stance_pos }}"></span>
+      {% if state %}<span class="marker" style="left: {{ state.stance|stance_pos }}"></span>{% endif %}
+    </div>
+    <p class="small" style="margin-top:6px">Started: <strong>{{ agent.initial_stance|stance_label }}</strong> ({{ agent.initial_stance|signed }}){% if state %} → now <strong>{{ state.stance|stance_label }}</strong> ({{ state.stance|signed }}), feeling {{ state.emotion }}{% endif %}</p>
+  </div>
+  {% if agent.kind == 'citizen' or agent.kind == 'influencer' %}
+  <div class="stack-sm">
+    <p class="label mb-0">Personality (Big Five)</p>
+    {% for label, key in traits %}{% with v=agent.big5|get_item:key %}<div class="trait"><span>{{ label }}</span><span class="bar" role="img" aria-label="{{ label }} {{ v|trait_pct }}"><span style="width: {{ v|trait_pct }}"></span></span><span class="tiny muted">{{ v|trait_pct }}</span></div>{% endwith %}{% endfor %}
+    <p class="help">Openness widens what they will listen to; agreeableness delays rejection; conscientiousness makes them stubborn and sceptical of rumours; extraversion makes them post more; neuroticism makes them more emotional.</p>
+  </div>
+  {% endif %}
+  {% if state and state.memory %}<div><p class="label">What happened to them</p><ul class="small">{% for m in state.memory %}<li>{{ m }}</li>{% endfor %}</ul></div>{% endif %}
+  {% if posts %}<div><p class="label">Recent posts</p><ul class="list-plain divider-list small">{% for p in posts %}<li>{{ p.text|social_text }} <span class="tiny muted">· {{ p.get_platform_display }} · {{ p.likes }} likes</span></li>{% endfor %}</ul></div>{% endif %}
+  {% if run %}<a class="btn btn-sm" href="{% url 'insights:talk' run.pk %}?agent={{ agent.pk }}">{% icon "message-circle" %}Interview {{ agent.name|truncatewords:2 }}</a>{% endif %}
+</div>

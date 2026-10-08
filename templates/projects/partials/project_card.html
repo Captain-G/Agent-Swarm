@@ -1,0 +1,9 @@
+{% load baraza %}
+<a class="card card-link" href="{% url 'projects:overview' p.pk %}">
+  <div class="card-body stack-sm">
+    <div class="cluster-sm"><span class="badge badge-outline">{{ p.country }}</span>{% with step=p.next_step %}{% if step %}<span class="badge badge-info">Next: {{ step.label }}</span>{% else %}<span class="badge badge-success">Complete</span>{% endif %}{% endwith %}</div>
+    <strong class="clamp-2">{{ p.title }}</strong>
+    <span class="small muted clamp-2">{{ p.question }}</span>
+    <span class="tiny muted">Updated {{ p.updated_at|timesince }} ago</span>
+  </div>
+</a>

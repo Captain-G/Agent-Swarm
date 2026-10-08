@@ -1,0 +1,152 @@
+{% extends "projects/workspace.html" %}
+{% load static baraza %}
+{% block title %}{{ run.name }} · {{ project.title }}{% endblock %}
+{% block head %}<script defer src="{% static 'vendor/chart-4.5.1.umd.min.js' %}"></script>{% endblock %}
+{% block workspace %}
+<div x-data="Baraza.liveRun({ status: '{{ run.status }}', round: {{ run.current_round }}, total: {{ run.total_rounds }}, metricsUrl: '{% url 'swarm:run_metrics' run.pk %}' })" class="stack-lg">
+  <div class="page-head">
+    <div class="stack-sm">
+      <p class="breadcrumb"><a href="{% url 'swarm:runs' project.pk %}">Simulate</a><span aria-hidden="true">/</span><span>{{ run.name }}</span></p>
+      <h1>{{ run.name }}</h1>
+      {% if run.description %}<p class="muted mb-0">{{ run.description }}</p>{% endif %}
+    </div>
+    <div class="cluster">
+      {% if run.status == 'completed' %}<a class="btn btn-primary" href="{% url 'insights:run' run.pk %}">{% icon "chart-line" %}See insights</a>{% endif %}
+      <template x-if="isActive()">
+        <form method="post" action="{% url 'swarm:run_stop' run.pk %}">{% csrf_token %}<button class="btn btn-danger" type="submit">{% icon "circle-stop" %}Stop</button></form>
+      </template>
+      {% if run.status == 'draft' or run.status == 'failed' %}
+        <form method="post" action="{% url 'swarm:run_start' run.pk %}">{% csrf_token %}<button class="btn btn-primary" type="submit">{% icon "play" %}Start</button></form>
+      {% elif run.status == 'stopped' %}
+        <form method="post" action="{% url 'swarm:run_resume' run.pk %}">{% csrf_token %}<button class="btn btn-primary" type="submit">{% icon "play" %}Resume</button></form>
+      {% endif %}
+    </div>
+  </div>
+
+  <section class="card" aria-label="Progress">
+    <div class="card-body stack-sm">
+      <div class="spread">
+        <div class="cluster-sm">
+          <span class="badge" :class="{ 'badge-info': isActive(), 'badge-success': status === 'completed', 'badge-danger': status === 'failed' }" x-text="status.charAt(0).toUpperCase() + status.slice(1)">{{ run.get_status_display }}</span>
+          <strong role="status" aria-live="polite">Round <span x-text="round">{{ run.current_round }}</span> of <span x-text="total">{{ run.total_rounds }}</span></strong>
+        </div>
+        <span class="small muted">{{ run.config.step_hours }}h per round · {{ run.config.mode }} · {{ run.config.platforms|join:", " }}</span>
+      </div>
+      <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="percent()" aria-label="Simulation progress"><span :style="'width:' + percent() + '%'" style="width: {{ run.progress }}%"></span></div>
+      {% if run.job and run.job.status == 'failed' %}<div class="alert alert-danger small"><p class="mb-0">{{ run.job.error|truncatechars:400 }}</p></div>{% endif %}
+    </div>
+  </section>
+
+  <div class="grid-4" aria-live="polite">
+    <div class="stat"><div class="label">{% icon "thumbs-down" %}Oppose</div><div class="value" x-text="metrics ? Baraza.pct(metrics.oppose) : '–'">–</div></div>
+    <div class="stat"><div class="label">{% icon "minus" %}Undecided</div><div class="value" x-text="metrics ? Baraza.pct(metrics.neutral) : '–'">–</div></div>
+    <div class="stat"><div class="label">{% icon "heart" %}Support</div><div class="value" x-text="metrics ? Baraza.pct(metrics.support) : '–'">–</div></div>
+    <div class="stat"><div class="label">{% icon "flame" %}Angry & opposed</div><div class="value" x-text="metrics ? Baraza.pct(metrics.mobilisation_index) : '–'">–</div><div class="delta muted" x-text="metrics ? (metrics.active + ' active · ' + metrics.posts + ' new posts') : ''"></div></div>
+  </div>
+
+  <div class="grid-2">
+    <section class="card" aria-labelledby="c1"><div class="card-header"><h2 id="c1">Share of the public</h2></div><div class="card-body"><div class="chart-box" id="chart-shares"></div></div></section>
+    <section class="card" aria-labelledby="c2"><div class="card-header"><h2 id="c2">Average opinion and emotion</h2></div><div class="card-body"><div class="chart-box" id="chart-mean"></div></div></section>
+  </div>
+
+  <div class="grid-2">
+    <section class="card" aria-labelledby="events-title">
+      <div class="card-header"><h2 id="events-title">{% icon "zap" %} Events</h2></div>
+      <div class="card-body">
+        {% if interventions %}
+        <ul class="list-plain divider-list">
+          {% for iv in interventions %}
+          <li class="spread">
+            <span><span class="badge {% if iv.applied %}badge-success{% else %}badge-warning{% endif %}">Round {{ iv.round }}</span> <strong class="small">{{ iv.get_kind_display }}</strong><br><span class="small">{{ iv.title|default:iv.content|truncatechars:110 }}</span>{% if iv.result %}<br><span class="tiny muted">{% for k, v in iv.result.items %}{{ k|cut:"_" }}: {{ v }}{% if not forloop.last %} · {% endif %}{% endfor %}</span>{% endif %}</span>
+            {% if not iv.applied %}<form method="post" action="{% url 'swarm:intervention_delete' run.pk iv.pk %}">{% csrf_token %}<button class="btn btn-ghost btn-icon btn-sm" type="submit" aria-label="Remove event">{% icon "trash-2" %}</button></form>{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}<p class="muted mb-0">No scheduled events. Use “Change the story” to inject one.</p>{% endif %}
+        <template x-if="metrics && metrics.hashtags && metrics.hashtags.length">
+          <div style="margin-top: var(--space-3)"><p class="label">Trending now</p><div class="cluster-sm"><template x-for="h in metrics.hashtags.slice(0,6)"><span class="badge badge-outline" x-text="h[0] + ' · ' + h[1]"></span></template></div></div>
+        </template>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="god-title">
+      <div class="card-header"><h2 id="god-title">{% icon "wand-sparkles" %} Change the story</h2></div>
+      <form method="post" action="{% url 'swarm:run_inject' run.pk %}" class="card-body stack-sm" x-data="{ kind: 'official_statement' }">
+        {% csrf_token %}
+        <p class="small muted mb-0">Inject an event into the next round{% if run.status == 'completed' %} (this run has finished: use “Run again with changes” below){% endif %}.</p>
+        <div class="grid-2">
+          <div class="field"><label for="inj-kind">What</label><select id="inj-kind" name="kind" x-model="kind">{% for v, l in intervention_kinds %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></div>
+          <div class="field"><label for="inj-actor">Posted by</label><select id="inj-actor" name="actor"><option value="">Automatic</option>{% for handle, name in institutions %}<option value="{{ handle }}">{{ name }}</option>{% endfor %}</select></div>
+        </div>
+        <div class="field" x-show="kind !== 'web_refresh'"><label for="inj-content">Message</label><textarea id="inj-content" name="content" rows="2" placeholder="Write the announcement, news, rumour or fact-check"></textarea></div>
+        <div class="grid-2">
+          <div class="field"><label for="inj-stance">Position (-1 against … +1 for)</label><div class="range-row"><input id="inj-stance" type="range" name="stance" min="-1" max="1" step="0.1" value="0.4" data-output="inj-stance-out"><output id="inj-stance-out">0.4</output></div></div>
+          <div class="field"><label for="inj-strength">Strength</label><div class="range-row"><input id="inj-strength" type="range" name="strength" min="0" max="1" step="0.1" value="0.8" data-output="inj-str-out"><output id="inj-str-out">0.8</output></div></div>
+        </div>
+        <div class="field" x-show="kind === 'policy_change'"><label for="inj-seg">Who is affected</label><input id="inj-seg" name="target_segments" value="all"></div>
+        <div><button class="btn btn-primary" type="submit">{% icon "zap" %}Inject</button></div>
+      </form>
+    </section>
+  </div>
+
+  <section class="card" aria-labelledby="feed-title" x-data="{ tab: 'microblog', group: '' }">
+    <div class="card-header"><h2 id="feed-title">{% icon "messages-square" %} What people are posting</h2><span class="badge badge-outline">All accounts and posts are simulated</span></div>
+    <div class="card-body" style="padding-top: var(--space-3)">
+      <div class="tabs" role="tablist" aria-label="Platform">
+        <button type="button" role="tab" :aria-selected="(tab === 'microblog').toString()" @click="tab = 'microblog'">{% icon "hash" %}Microblog</button>
+        <button type="button" role="tab" :aria-selected="(tab === 'forum').toString()" @click="tab = 'forum'; htmx.ajax('GET', '{% url 'swarm:run_feed' run.pk %}?platform=forum', '#forum-feed')">{% icon "messages-square" %}Forum</button>
+        <button type="button" role="tab" :aria-selected="(tab === 'chat').toString()" @click="tab = 'chat'; htmx.ajax('GET', '{% url 'swarm:run_feed' run.pk %}?platform=chat', '#chat-feed')">{% icon "message-circle" %}Group chats</button>
+      </div>
+      <div x-show="tab === 'microblog'" role="tabpanel">
+        <form class="cluster-sm" style="margin-bottom: var(--space-3)" hx-get="{% url 'swarm:run_feed' run.pk %}" hx-target="#micro-feed" hx-trigger="change">
+          <input type="hidden" name="platform" value="microblog">
+          <label for="feed-filter" class="small">Show</label>
+          <select id="feed-filter" name="stance" style="width:auto"><option value="">Everything</option><option value="oppose">Opposing posts</option><option value="support">Supportive posts</option><option value="llm">AI-written posts</option></select>
+        </form>
+        <div class="feed feed-scroll" id="micro-feed" hx-get="{% url 'swarm:run_feed' run.pk %}?platform=microblog" hx-trigger="load{% if run.is_active %}, every 5s{% endif %}" hx-swap="innerHTML">
+          <div class="skeleton" style="height:80px"></div>
+        </div>
+      </div>
+      <div x-show="tab === 'forum'" x-cloak role="tabpanel"><div id="forum-feed" class="feed-scroll"></div></div>
+      <div x-show="tab === 'chat'" x-cloak role="tabpanel">
+        <div class="field" style="max-width:360px; margin-bottom: var(--space-3)"><label for="group-pick">Group</label>
+          <select id="group-pick" name="group" hx-get="{% url 'swarm:run_feed' run.pk %}?platform=chat" hx-target="#chat-feed" hx-trigger="change"><option value="">All groups (latest)</option>{% for g in groups %}<option value="{{ g.idx }}">{{ g.name }} ({{ g.members|length }})</option>{% endfor %}</select>
+        </div>
+        <div id="chat-feed" class="feed-scroll"></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="grid-2">
+    <details class="disclosure">
+      <summary>{% icon "git-compare-arrows" %}Run again with changes</summary>
+      <form method="post" action="{% url 'swarm:run_clone' run.pk %}" class="disclosure-body stack-sm">{% csrf_token %}
+        <p class="small muted mb-0">Creates a copy with the same population and settings so you can compare. Add different events, then start it.</p>
+        <div class="field"><label for="clone-name">Name</label><input id="clone-name" name="name" value="{{ run.name }} (variant)"></div>
+        <label class="check"><input type="checkbox" name="include_interventions" checked><span>Copy this run's events</span></label>
+        <button class="btn" type="submit">{% icon "copy" %}Create variant</button>
+      </form>
+    </details>
+    <details class="disclosure">
+      <summary>{% icon "download" %}Export data and settings</summary>
+      <div class="disclosure-body stack-sm">
+        <div class="cluster-sm">
+          <a class="btn btn-sm" href="{% url 'swarm:run_export' run.pk 'posts' %}">{% icon "download" %}Posts (CSV)</a>
+          <a class="btn btn-sm" href="{% url 'swarm:run_export' run.pk 'agents' %}">{% icon "download" %}Agents (CSV)</a>
+          <a class="btn btn-sm" href="{% url 'swarm:run_export' run.pk 'rounds' %}">{% icon "download" %}Metrics per round (CSV)</a>
+        </div>
+        {% if run.status == 'completed' %}
+        <form method="post" action="{% url 'swarm:run_resume' run.pk %}" class="cluster-sm">{% csrf_token %}<label for="extra" class="small">Extend by</label><input id="extra" type="number" name="extra_rounds" value="12" min="1" max="200" style="width:90px"><span class="small">rounds</span><button class="btn btn-sm" type="submit">{% icon "play" %}Continue</button></form>
+        {% endif %}
+        <div class="table-wrap"><table class="small"><tbody>{% for k, v in config_rows %}<tr><th scope="row">{{ k }}</th><td>{{ v }}</td></tr>{% endfor %}</tbody></table></div>
+        <form method="post" action="{% url 'swarm:run_delete' run.pk %}" onsubmit="return confirm('Delete this run and all its posts?');">{% csrf_token %}<button class="btn btn-danger btn-sm" type="submit">{% icon "trash-2" %}Delete run</button></form>
+      </div>
+    </details>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  document.addEventListener("baraza:run-finished", function () { setTimeout(function () { window.location.reload(); }, 800); });
+</script>
+{% endblock %}

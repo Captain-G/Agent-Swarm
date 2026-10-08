@@ -1,0 +1,12 @@
+{% extends "projects/workspace.html" %}
+{% load baraza %}
+{% block title %}Poll · {{ run.name }}{% endblock %}
+{% block workspace %}
+<div class="page-head"><div class="stack-sm"><p class="breadcrumb"><a href="{% url 'insights:talk' run.pk %}">Interviews & polls</a></p><h1>{{ poll.question }}</h1><p class="muted mb-0">Virtual focus group of {{ poll.sample_size }} synthetic people, stratified by segment. Not a real survey.</p></div></div>
+{% if poll.status != 'completed' %}{% if job %}{% include "core/partials/job_status.html" with job=job %}{% else %}<p class="muted">Waiting for answers…</p>{% endif %}{% endif %}
+{% if poll.status == 'completed' %}
+<div class="grid-4">{% for answer, n in poll.summary.counts.items %}<div class="stat"><div class="label">{{ answer }}</div><div class="value">{{ poll.summary.shares|get_item:answer|pct }}</div><div class="delta muted">{{ n }} of {{ poll.summary.n }}</div></div>{% endfor %}</div>
+<section class="card"><div class="card-header"><h2>By segment</h2></div><div class="card-body"><div class="table-wrap"><table><thead><tr><th scope="col">Segment</th><th scope="col">Answers</th></tr></thead><tbody>{% for seg, counts in poll.summary.by_segment.items %}<tr><th scope="row">{{ seg }}</th><td>{% for a, n in counts.items %}<span class="badge badge-outline">{{ a }} · {{ n }}</span> {% endfor %}</td></tr>{% endfor %}</tbody></table></div></div></section>
+<section class="card"><div class="card-header"><h2>In their words</h2></div><div class="card-body"><ul class="list-plain divider-list">{% for r in poll.responses %}<li><div class="spread"><strong>{{ r.name }}</strong><span class="cluster-sm"><span class="badge">{{ r.segment }}</span><span class="badge stance-{{ r.score|stance_class }}">{{ r.answer }}</span></span></div><p class="small mb-0">“{{ r.reason }}”</p><span class="tiny muted">{{ r.region }}{% if r.by == 'heuristic' %} · estimated without AI{% endif %}</span></li>{% endfor %}</ul></div></section>
+{% endif %}
+{% endblock %}

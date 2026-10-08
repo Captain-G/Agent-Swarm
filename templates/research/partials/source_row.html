@@ -1,0 +1,20 @@
+{% load baraza %}
+<tr id="source-{{ s.pk }}">
+  <td style="min-width:260px">
+    <div class="cluster-sm"><span class="badge">{{ s.get_platform_display }}</span><span class="badge badge-outline">{{ s.get_kind_display }}</span>{% if s.published_at %}<span class="tiny muted">{{ s.published_at|date:"d M Y" }}</span>{% endif %}</div>
+    <button class="btn btn-ghost" style="padding:0; min-height:auto; text-align:left; font-weight:700; white-space:normal" type="button" hx-get="{% url 'research:detail' project.pk s.pk %}" hx-target="#modal-content">{{ s.title|truncatechars:110 }}</button>
+    <p class="small muted clamp-2 mb-0">{{ s.snippet|truncatechars:240 }}</p>
+    {% if s.domain %}<span class="tiny muted">{{ s.domain }}</span>{% endif %}
+  </td>
+  <td class="nowrap">
+    {% if s.stance is not None %}{% stance_badge s.stance %}{% endif %}
+    {% if s.sentiment is not None %}<div class="tiny muted">Sentiment {{ s.sentiment|signed }}</div>{% endif %}
+    {% if s.engagement %}<div class="tiny muted">{{ s.engagement }} engagements</div>{% endif %}
+  </td>
+  <td class="num">{{ s.relevance|pct }}</td>
+  <td>
+    <button class="btn btn-sm {% if s.included %}{% else %}btn-ghost{% endif %}" type="button" hx-post="{% url 'research:toggle' project.pk s.pk %}" hx-target="#source-{{ s.pk }}" hx-swap="outerHTML" aria-pressed="{{ s.included|yesno:'true,false' }}">
+      {% if s.included %}{% icon "check" %}In use{% else %}{% icon "x" %}Excluded{% endif %}
+    </button>
+  </td>
+</tr>

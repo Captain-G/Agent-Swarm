@@ -1,0 +1,30 @@
+{% extends "projects/workspace.html" %}
+{% load baraza %}
+{% block title %}Report · {{ run.name }}{% endblock %}
+{% block workspace %}
+<div class="page-head no-print">
+  <div class="stack-sm"><p class="eyebrow">Step 6 · Observer report</p><h1>{{ report.title|default:"Observer report" }}</h1><p class="muted mb-0">Written by the Observer agent from the simulation's numbers. Share it, print it, or download it as Markdown.</p></div>
+  <div class="cluster">
+    {% if report %}
+      <button class="btn" type="button" onclick="window.print()">{% icon "printer" %}Print / save as PDF</button>
+      <a class="btn" href="{% url 'insights:report_md' run.pk %}">{% icon "download" %}Markdown</a>
+    {% endif %}
+    {% if not job %}<form method="post" action="{% url 'insights:report_generate' run.pk %}">{% csrf_token %}<button class="btn {% if not report %}btn-primary{% endif %}" type="submit">{% icon "sparkles" %}{% if report %}Rewrite{% else %}Write the report{% endif %}</button></form>{% endif %}
+  </div>
+</div>
+<div class="no-print">{% include "insights/partials/tabs.html" %}</div>
+{% if job %}{% include "core/partials/job_status.html" with job=job %}{% endif %}
+{% if report %}
+<article class="card"><div class="card-body prose">
+  <p class="small muted"><em>Simulated scenario for {{ project.country_profile.name }} · {{ report.created_at|date:"d M Y H:i" }} · {% if report.generated_by == 'llm' %}Narrative by the AI Observer from computed statistics{% else %}Template report (no AI model connected){% endif %}. Synthetic agents; not a poll or a forecast.</em></p>
+  {% for s in sections %}
+    <h2 id="{{ s.key }}">{{ s.title }}</h2>
+    {{ s.html|safe }}
+  {% endfor %}
+  <h2>Appendix: simulation settings</h2>
+  <div class="table-wrap"><table class="small"><tbody>{% for k, v in run.config.items %}<tr><th scope="row">{{ k }}</th><td>{{ v }}</td></tr>{% endfor %}</tbody></table></div>
+</div></article>
+{% elif not job %}
+<div class="empty-state">{% icon "file-text" %}<h3>No report yet</h3><p>The Observer reads every number from this run and writes a decision-ready report: what happened, who moved and why, risks, and recommendations.</p></div>
+{% endif %}
+{% endblock %}

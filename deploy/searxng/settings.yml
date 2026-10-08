@@ -1,0 +1,15 @@
+# Minimal SearXNG configuration for Baraza: enables the JSON API used by the
+# "SearXNG" research connector. See https://docs.searxng.org/admin/settings/
+use_default_settings: true
+
+server:
+  # Change this to any long random string.
+  secret_key: "change-me-to-a-long-random-string"
+  limiter: false
+  image_proxy: false
+
+search:
+  safe_search: 1
+  formats:
+    - html
+    - json

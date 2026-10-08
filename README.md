@@ -1,203 +1,142 @@
-<div align="center">
+# Baraza: rehearse public sentiment before it happens
 
-<img src="./static/image/MiroFish_logo_compressed.jpeg" alt="MiroFish Logo" width="75%"/>
+**Baraza** is a free, open-source tool that simulates how people react on social media to a policy, action or reform, so you can prepare before you go public. It is built for Kenya and the rest of Africa and runs fully on your own computer with the `llama3` model through [Ollama](https://ollama.com), at no cost.
 
-<a href="https://trendshift.io/repositories/16144" target="_blank"><img src="https://trendshift.io/api/badge/repositories/16144" alt="666ghj%2FMiroFish | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+A *baraza* is a public gathering where a community debates what affects it. This tool recreates that debate with AI agents: you write a proposal in plain English, Baraza researches what people already say about it online, builds a structured knowledge base, creates a synthetic population of citizens, institutions and media, and lets them argue, persuade each other and change their minds on an X-style microblog, a Facebook/Reddit-style forum and WhatsApp-style group chats. Then you can rehearse your communication: announce a concession, publish an explanation, inject a rumour and a fact-check, and compare what happens.
 
-简洁通用的群体智能引擎，预测万物
-</br>
-<em>A Simple and Universal Swarm Intelligence Engine, Predicting Anything</em>
+> Baraza explores *plausible dynamics*. It is not a poll and it does not predict what specific real people will do. See [How far to trust the results](docs/methodology.md#how-far-to-trust-the-results).
 
-<a href="https://www.shanda.com/" target="_blank"><img src="./static/image/shanda_logo.png" alt="666ghj%2FMiroFish | Shanda" height="40"/></a>
+![Baraza home page: describe a policy and start a rehearsal](docs/images/home.jpg)
 
-[![GitHub Stars](https://img.shields.io/github/stars/666ghj/MiroFish?style=flat-square&color=DAA520)](https://github.com/666ghj/MiroFish/stargazers)
-[![GitHub Watchers](https://img.shields.io/github/watchers/666ghj/MiroFish?style=flat-square)](https://github.com/666ghj/MiroFish/watchers)
-[![GitHub Forks](https://img.shields.io/github/forks/666ghj/MiroFish?style=flat-square)](https://github.com/666ghj/MiroFish/network)
-[![Docker](https://img.shields.io/badge/Docker-Build-2496ED?style=flat-square&logo=docker&logoColor=white)](https://hub.docker.com/)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/666ghj/MiroFish)
+## Screenshots
 
-[![Discord](https://img.shields.io/badge/Discord-Join-5865F2?style=flat-square&logo=discord&logoColor=white)](http://discord.gg/ePf5aPaHnA)
-[![X](https://img.shields.io/badge/X-Follow-000000?style=flat-square&logo=x&logoColor=white)](https://x.com/mirofish_ai)
-[![Instagram](https://img.shields.io/badge/Instagram-Follow-E4405F?style=flat-square&logo=instagram&logoColor=white)](https://www.instagram.com/mirofish_ai/)
-
-[English](./README.md) | [中文文档](./README-ZH.md)
-
-</div>
-
-## ⚡ Overview
-
-**MiroFish** is a next-generation AI prediction engine powered by multi-agent technology. By extracting seed information from the real world (such as breaking news, policy drafts, or financial signals), it automatically constructs a high-fidelity parallel digital world. Within this space, thousands of intelligent agents with independent personalities, long-term memory, and behavioral logic freely interact and undergo social evolution. You can inject variables dynamically from a "God's-eye view" to precisely deduce future trajectories — **rehearse the future in a digital sandbox, and win decisions after countless simulations**.
-
-> You only need to: Upload seed materials (data analysis reports or interesting novel stories) and describe your prediction requirements in natural language</br>
-> MiroFish will return: A detailed prediction report and a deeply interactive high-fidelity digital world
-
-### Our Vision
-
-MiroFish is dedicated to creating a swarm intelligence mirror that maps reality. By capturing the collective emergence triggered by individual interactions, we break through the limitations of traditional prediction:
-
-- **At the Macro Level**: We are a rehearsal laboratory for decision-makers, allowing policies and public relations to be tested at zero risk
-- **At the Micro Level**: We are a creative sandbox for individual users — whether deducing novel endings or exploring imaginative scenarios, everything can be fun, playful, and accessible
-
-From serious predictions to playful simulations, we let every "what if" see its outcome, making it possible to predict anything.
-
-## 🌐 Live Demo
-
-Welcome to visit our online demo environment and experience a prediction simulation on trending public opinion events we've prepared for you: [mirofish-live-demo](https://666ghj.github.io/mirofish-demo/)
-
-## 📸 Screenshots
-
-<div align="center">
 <table>
 <tr>
-<td><img src="./static/image/Screenshot/运行截图1.png" alt="Screenshot 1" width="100%"/></td>
-<td><img src="./static/image/Screenshot/运行截图2.png" alt="Screenshot 2" width="100%"/></td>
+<td width="50%"><img src="docs/images/simulation.jpg" alt="A simulation run: share of the public supporting and opposing over simulated days"><br><sub><b>Live simulation.</b> Support and opposition over simulated time, with events you inject.</sub></td>
+<td width="50%"><img src="docs/images/insights.jpg" alt="Insights dashboard with key numbers and charts"><br><sub><b>Insights.</b> Who moved, polarisation, echo chambers and which arguments worked.</sub></td>
 </tr>
 <tr>
-<td><img src="./static/image/Screenshot/运行截图3.png" alt="Screenshot 3" width="100%"/></td>
-<td><img src="./static/image/Screenshot/运行截图4.png" alt="Screenshot 4" width="100%"/></td>
+<td><img src="docs/images/knowledge.jpg" alt="Research dossier and knowledge graph"><br><sub><b>Knowledge.</b> A cited dossier, the actors involved and the argument bank.</sub></td>
+<td><img src="docs/images/population.jpg" alt="Synthetic population with starting opinions by segment"><br><sub><b>Population.</b> Synthetic citizens, institutions and media with evidence-based starting views.</sub></td>
 </tr>
 <tr>
-<td><img src="./static/image/Screenshot/运行截图5.png" alt="Screenshot 5" width="100%"/></td>
-<td><img src="./static/image/Screenshot/运行截图6.png" alt="Screenshot 6" width="100%"/></td>
+<td><img src="docs/images/ensemble.jpg" alt="Monte Carlo ensemble comparing a scenario with its baseline"><br><sub><b>Ensembles.</b> 30 runs of a concession versus the baseline, with uncertainty bands.</sub></td>
+<td><img src="docs/images/interview.jpg" alt="Interviewing a simulated boda boda rider and asking the Observer"><br><sub><b>Talk to the simulation.</b> Interview any agent, question the Observer, poll a focus group.</sub></td>
 </tr>
 </table>
-</div>
 
-## 🎬 Demo Videos
+<sub>Screenshots from the offline demo (`python manage.py baraza_demo` with the built-in demo model and illustrative, not real, evidence). With Llama 3 the briefs, dossiers, posts and reports are written by the model.</sub>
 
-### 1. Wuhan University Public Opinion Simulation + MiroFish Project Introduction
+## What it does
 
-<div align="center">
-<a href="https://www.bilibili.com/video/BV1VYBsBHEMY/" target="_blank"><img src="./static/image/武大模拟演示封面.png" alt="MiroFish Demo Video" width="75%"/></a>
+| Step | What happens |
+|---|---|
+| **1. Brief** | Your prompt is restructured into a research brief: the concrete measures, who proposes it, who is affected and how (direction and intensity), stakeholders, search queries (including Swahili for East Africa), hashtags and testable hypotheses. You can edit everything. |
+| **2. Deep research** | Free sources first: web and news search, Google News country editions, the GDELT news index, Wikipedia, Reddit, YouTube comments, public Telegram channels, and public posts on X, Facebook, LinkedIn, TikTok and Instagram as indexed by search engines. Optional low-cost providers (Apify, twitterapi.io, Tavily, Brave, Serper, X API). Articles are read in full (robots.txt respected), ranked for relevance, and public posts are labelled for stance. |
+| **3. Knowledge graph (GraphRAG)** | A language model extracts actors, relationships, arguments for and against, facts and rumours. Actors are merged ("KRA" = "Kenya Revenue Authority"), ranked with PageRank and grouped into communities. Baraza writes a neutral dossier, a stakeholder impact matrix and an argument bank. |
+| **4. Synthetic population** | Citizens are sampled from country demographics (all 47 Kenyan counties from the 2019 census; regional data for Nigeria, South Africa, Ghana, Uganda, Tanzania, Rwanda and Ethiopia) and 25 local archetypes (boda boda riders, market vendors, students, farmers, civil servants, M-Pesa agents...). Each gets Big Five personality traits, platform habits and a starting opinion derived from how the research says their group is affected, optionally calibrated to the stance seen in real posts. Institutions and media from the knowledge graph become accounts. |
+| **5. Simulation** | Agents wake up according to their habits, the time of day and how heated the topic is, read ranked feeds, update their opinions (social judgement theory with backfire, group polarisation and anchoring), react, reply and post. Language-model text for the most visible posts, instant templates for the rest. You can intervene live ("God mode"). |
+| **6. Insights** | Opinion trajectories by segment and county, polarisation and echo-chamber indices, which arguments persuaded or backfired, influential accounts, a written Observer report, interviews with any agent, virtual polls, scenario comparison, Monte Carlo ensembles with confidence intervals, and validation against real posts. |
 
-Click the image to watch the complete demo video for prediction using BettaFish-generated "Wuhan University Public Opinion Report"
-</div>
+**Autopilot** runs all six steps from a single prompt. **Step-by-step mode** lets you review and edit each stage.
 
-### 2. Dream of the Red Chamber Lost Ending Simulation
+## Quick start
 
-<div align="center">
-<a href="https://www.bilibili.com/video/BV1cPk3BBExq" target="_blank"><img src="./static/image/红楼梦模拟推演封面.jpg" alt="MiroFish Demo Video" width="75%"/></a>
-
-Click the image to watch MiroFish's deep prediction of the lost ending based on hundreds of thousands of words from the first 80 chapters of "Dream of the Red Chamber"
-</div>
-
-> **Financial Prediction**, **Political News Prediction** and more examples coming soon...
-
-## 🔄 Workflow
-
-1. **Graph Building**: Seed extraction & Individual/collective memory injection & GraphRAG construction
-2. **Environment Setup**: Entity relationship extraction & Persona generation & Agent configuration injection
-3. **Simulation**: Dual-platform parallel simulation & Auto-parse prediction requirements & Dynamic temporal memory updates
-4. **Report Generation**: ReportAgent with rich toolset for deep interaction with post-simulation environment
-5. **Deep Interaction**: Chat with any agent in the simulated world & Interact with ReportAgent
-
-## 🚀 Quick Start
-
-### Option 1: Source Code Deployment (Recommended)
-
-#### Prerequisites
-
-| Tool | Version | Description | Check Installation |
-|------|---------|-------------|-------------------|
-| **Node.js** | 18+ | Frontend runtime, includes npm | `node -v` |
-| **Python** | ≥3.11, ≤3.12 | Backend runtime | `python --version` |
-| **uv** | Latest | Python package manager | `uv --version` |
-
-#### 1. Configure Environment Variables
+You need **Python 3.10 or newer** and, for AI features, **Ollama** with `llama3` (you can also try Baraza without any AI; see the demo below).
 
 ```bash
-# Copy the example configuration file
-cp .env.example .env
+# 1. Get the code
+git clone https://github.com/captain-g/agent-swarm.git baraza
+cd baraza
 
-# Edit the .env file and fill in the required API keys
+# 2. Create a virtual environment and install
+python -m venv venv
+source venv/bin/activate            # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+# 3. Create the database
+python manage.py migrate
+
+# 4. Make sure Ollama is running with llama3 (you already have this if `ollama run llama3` works)
+ollama pull llama3
+ollama pull nomic-embed-text        # optional: better search over the evidence
+
+# 5. Start Baraza
+python manage.py runserver
 ```
 
-**Required Environment Variables:**
+Open **http://127.0.0.1:8000**, type a proposal (or pick one of the 12 ready-made African scenarios) and press **Run full rehearsal**.
 
-```env
-# LLM API Configuration (supports any LLM API with OpenAI SDK format)
-# Recommended: Alibaba Qwen-plus model via Bailian Platform: https://bailian.console.aliyun.com/
-# High consumption, try simulations with fewer than 40 rounds first
-LLM_API_KEY=your_api_key
-LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-LLM_MODEL_NAME=qwen-plus
+Check that the language model is reachable at any time with `python manage.py check_llm`, or open **Settings** in the app.
 
-# Zep Cloud Configuration
-# Free monthly quota is sufficient for simple usage: https://app.getzep.com/
-ZEP_API_KEY=your_zep_api_key
-```
-
-#### 2. Install Dependencies
+### Try it without any AI or internet
 
 ```bash
-# One-click installation of all dependencies (root + frontend + backend)
-npm run setup:all
+LLM_PROVIDER=fake python manage.py baraza_demo     # Windows PowerShell: $env:LLM_PROVIDER="fake"; python manage.py baraza_demo
+LLM_PROVIDER=fake python manage.py runserver
 ```
 
-Or install step by step:
+This creates a complete worked example (a fictional 2% levy on mobile money transfers) using a built-in offline stand-in model. Its writing is deliberately plain; connect Ollama for real quality.
+
+### Command line
 
 ```bash
-# Install Node dependencies (root + frontend)
-npm run setup
-
-# Install Python dependencies (backend, auto-creates virtual environment)
-npm run setup:backend
+python manage.py rehearse "The county government bans plastic bottles in all markets" --country KE --depth quick
 ```
 
-#### 3. Start Services
+## Running it for free (and cheaply when you want more)
+
+| Setup | Cost | Notes |
+|---|---|---|
+| Ollama `llama3` + SQLite + free data sources | **KES 0** | The default. A quick rehearsal makes about 70 model calls, a standard one about 200. With a graphics card or an Apple Silicon Mac a standard rehearsal takes roughly 15-40 minutes; on a processor alone, start with Quick depth (up to an hour). |
+| Hybrid: agents on local `llama3`, brief/dossier/report on a free hosted tier (Groq or OpenRouter free models) | **KES 0** within free limits | Set `HYBRID_SMART_TIER=True` and an `OPENAI_API_KEY`. Better analysis, same privacy for the bulk of calls. |
+| Everything on a hosted API | Typically well under USD 0.50 per standard rehearsal on low-cost open models | Any OpenAI-compatible API: Groq, OpenRouter, Together, DeepSeek, Gemini, OpenAI. |
+| Paid social data (X, LinkedIn, Facebook, TikTok) | Free monthly credits, then a few dollars per thousand posts | Apify, twitterapi.io or the official X API. Optional. |
+
+Identical model requests are cached, the number of AI-written posts per round is configurable, and the **Instant** preset runs a whole simulation with no AI text at all in seconds. Details: [docs/cost-guide.md](docs/cost-guide.md).
+
+## Data sources: free first
+
+| Platform | Free option in Baraza | Low-cost option |
+|---|---|---|
+| News and web | DuckDuckGo/Bing metasearch, Google News country editions, GDELT, your RSS feeds, self-hosted SearXNG | Tavily, Brave, Serper free tiers |
+| X (Twitter) | Public posts indexed by search engines; Bluesky and Mastodon for comparison | twitterapi.io (pay as you go), Apify, official X API |
+| Facebook | Public posts and pages indexed by search engines | Apify Facebook scrapers for public pages |
+| LinkedIn | Public posts indexed by search engines | Apify LinkedIn post search |
+| TikTok, Instagram | Public posts indexed by search engines | Apify |
+| YouTube | Comments under news videos (free API key, 10,000 units a day) | - |
+| Reddit | Public JSON or a free API app (r/Kenya, r/Nigeria, r/southafrica...) | - |
+| Telegram | Public channel previews | - |
+| WhatsApp | Not collectable (private); simulated as group chats, and you can paste or upload text | - |
+| Your own data | Paste text, add URLs, upload PDF, Word, HTML, text or CSV exports of posts | - |
+
+Baraza never logs in to personal accounts, bypasses access controls or posts anything anywhere. Read [docs/data-sources.md](docs/data-sources.md) before collecting social media data, and [docs/ethics.md](docs/ethics.md) for data protection (Kenya's Data Protection Act 2019, Nigeria's NDPA 2023, South Africa's POPIA).
+
+## Documentation
+
+- [Getting started](docs/getting-started.md): installation on Windows, macOS and Linux, Ollama tips, first rehearsal
+- [User guide](docs/user-guide.md): every screen, God mode, interviews, polls, comparisons, exports
+- [Architecture](docs/architecture.md): how the code is organised and how the pieces fit
+- [Methodology](docs/methodology.md): the opinion model, population synthesis, metrics, validation and limitations
+- [Data sources](docs/data-sources.md): every connector, what it costs, how to set it up, terms of use
+- [Cost guide](docs/cost-guide.md): hardware, models and spending
+- [Ethics and safeguards](docs/ethics.md)
+- [Research notes](docs/research-notes.md): how Baraza implements and extends the MiroFish/OASIS approach, and an evaluation plan for academic work
+- [Deployment](docs/deployment.md): Docker, a shared server, PostgreSQL, a background worker
+
+## Development
 
 ```bash
-# Start both frontend and backend (run from project root)
-npm run dev
+python manage.py test tests          # 130+ tests, run offline in about 15 seconds
+python manage.py check
 ```
 
-**Service URLs:**
-- Frontend: `http://localhost:3000`
-- Backend API: `http://localhost:5001`
+The stack is deliberately simple: Django 5.2, SQLite (PostgreSQL optional), server-rendered templates with htmx, Alpine.js, Chart.js and D3 (all vendored, no Node.js build), and background jobs in threads or a separate worker process (no Redis or Celery). Language models are reached over plain HTTP (Ollama or any OpenAI-compatible API).
 
-**Start Individually:**
+## Credits
 
-```bash
-npm run backend   # Start backend only
-npm run frontend  # Start frontend only
-```
+Baraza started as a rewrite of [MiroFish](https://github.com/666ghj/MiroFish) and is inspired by [OASIS](https://github.com/camel-ai/oasis) (CAMEL-AI), GraphRAG (Microsoft Research) and decades of opinion-dynamics research (Friedkin and Johnsen; Hegselmann and Krause; Deffuant and Weisbuch; Jager and Amblard). The interface follows a design system generated with [UI UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill). Third-party front-end libraries and fonts are listed in [static/vendor/THIRD_PARTY_NOTICES.md](static/vendor/THIRD_PARTY_NOTICES.md).
 
-### Option 2: Docker Deployment
+## License
 
-```bash
-# 1. Configure environment variables (same as source deployment)
-cp .env.example .env
-
-# 2. Pull image and start
-docker compose up -d
-```
-
-Reads `.env` from root directory by default, maps ports `3000 (frontend) / 5001 (backend)`
-
-> Mirror address for faster pulling is provided as comments in `docker-compose.yml`, replace if needed.
-
-## 📬 Join the Conversation
-
-<div align="center">
-<img src="./static/image/QQ群.png" alt="QQ Group" width="60%"/>
-</div>
-
-&nbsp;
-
-The MiroFish team is recruiting full-time/internship positions. If you're interested in multi-agent simulation and LLM applications, feel free to send your resume to: **mirofish@shanda.com**
-
-## 📄 Acknowledgments
-
-**MiroFish has received strategic support and incubation from Shanda Group!**
-
-MiroFish's simulation engine is powered by **[OASIS (Open Agent Social Interaction Simulations)](https://github.com/camel-ai/oasis)**, We sincerely thank the CAMEL-AI team for their open-source contributions!
-
-## 📈 Project Statistics
-
-<a href="https://github.com/666ghj/MiroFish">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="static/image/star-history-dark.svg" />
-   <source media="(prefers-color-scheme: light)" srcset="static/image/star-history-light.svg" />
-   <img alt="666ghj/MiroFish Star History Chart" src="static/image/star-history-light.svg" />
- </picture>
-</a>
+[GNU AGPL-3.0](LICENSE), as inherited from MiroFish. If you run a modified version as a service for others, you must share your source code with them.

@@ -1,0 +1,8 @@
+{% load baraza %}
+<nav class="tabs" aria-label="Results sections">
+  <a href="{% url 'insights:run' run.pk %}" {% if tab == 'overview' %}aria-current="page"{% endif %}>{% icon "chart-line" %}Analytics</a>
+  <a href="{% url 'insights:report' run.pk %}" {% if tab == 'report' %}aria-current="page"{% endif %}>{% icon "file-text" %}Report</a>
+  <a href="{% url 'insights:talk' run.pk %}" {% if tab == 'talk' %}aria-current="page"{% endif %}>{% icon "message-circle" %}Interviews & polls</a>
+  <a href="{% url 'insights:validation' run.pk %}" {% if tab == 'validation' %}aria-current="page"{% endif %}>{% icon "badge-check" %}Validation</a>
+  <a href="{% url 'insights:compare' project.pk %}">{% icon "git-compare-arrows" %}Compare runs</a>
+</nav>

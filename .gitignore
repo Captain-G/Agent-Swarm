@@ -1,60 +1,35 @@
-# OS
-.DS_Store
-Thumbs.db
+# Local data: database, uploads, logs, secret key
+data/
+media/
+staticfiles/
+*.sqlite3
+*.sqlite3-*
+*.log
 
-# 环境变量（保护敏感信息）
+# Secrets and environment
 .env
-.env.local
-.env.*.local
-.env.development
-.env.test
-.env.production
+.env.*
+!.env.example
 
 # Python
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-.Python
 .venv/
 venv/
-ENV/
+env/
 .eggs/
 *.egg-info/
-dist/
 build/
-
-# Node.js
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# 测试
+dist/
 .pytest_cache/
+.ruff_cache/
+.mypy_cache/
 .coverage
 htmlcov/
 
-# Cursor
-.cursor/
-.claude/
-
-# 文档与测试程序
-mydoc/
-mytest/
-
-# 日志文件
-backend/logs/
-*.log
-
-# 上传文件
-backend/uploads/
-
-# Docker 数据
-data/
+# Editors and OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

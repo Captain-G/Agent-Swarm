@@ -1,0 +1,57 @@
+{% extends "projects/workspace.html" %}
+{% load static baraza %}
+{% block title %}Validation · {{ run.name }}{% endblock %}
+{% block head %}<script defer src="{% static 'vendor/chart-4.5.1.umd.min.js' %}"></script>{% endblock %}
+{% block workspace %}
+<div class="page-head"><div class="stack-sm"><p class="eyebrow">Step 6 · Validation</p><h1>How close is the simulation to reality?</h1><p class="muted mb-0">Compares the simulated posts with real posts on sentiment, stance and emotion using Jensen-Shannon divergence (0 = identical), Wasserstein distance and the Kolmogorov-Smirnov statistic.</p></div></div>
+{% include "insights/partials/tabs.html" %}
+<div class="grid-2">
+  <section class="card"><div class="card-header"><h2>{% icon "search" %} Against the research</h2></div>
+    <form method="post" class="card-body stack-sm">{% csrf_token %}<p class="small muted mb-0">Uses the public posts collected in step 2 ({{ project.sources.count }} sources).</p><button class="btn btn-primary" type="submit">{% icon "badge-check" %}Validate</button></form></section>
+  <section class="card"><div class="card-header"><h2>{% icon "upload" %} Against your own data</h2></div>
+    <form method="post" enctype="multipart/form-data" class="card-body stack-sm">{% csrf_token %}
+      <div class="field"><label for="v-name">Name</label><input id="v-name" name="name" placeholder="e.g. X posts, June 2024 Finance Bill"></div>
+      <div class="field"><label for="v-file">CSV of real posts</label><input id="v-file" type="file" name="file" accept=".csv" required><p class="help">Needs a column called text, content, body, message, post or tweet. Great for back-testing against a past event.</p></div>
+      <button class="btn" type="submit">{% icon "upload" %}Upload and validate</button>
+    </form>
+    {% if datasets %}<form method="post" class="card-footer cluster-sm">{% csrf_token %}<label for="v-ds" class="small">Or reuse</label><select id="v-ds" name="dataset" style="width:auto">{% for d in datasets %}<option value="{{ d.pk }}">{{ d.name }} ({{ d.texts|length }})</option>{% endfor %}</select><button class="btn btn-sm" type="submit">Validate</button></form>{% endif %}
+  </section>
+</div>
+{% for r in results %}
+{% with m=r.metrics %}
+<section class="card"><div class="card-header"><h2>{% if r.dataset %}{{ r.dataset.name }}{% else %}Research posts{% endif %}</h2><span class="small muted">{{ r.created_at|date:"d M H:i" }}</span></div>
+  <div class="card-body stack">
+    {% if m.error %}<div class="alert alert-warning">{% icon "triangle-alert" %}<p>{{ m.error }}</p></div>{% else %}
+    <div class="grid-4">
+      <div class="stat"><div class="label">Fit score</div><div class="value">{{ m.fit_score|floatformat:2 }}</div><div class="delta muted">1 = identical distributions</div></div>
+      <div class="stat"><div class="label">Sentiment JSD</div><div class="value">{{ m.sentiment_jsd|floatformat:3 }}</div><div class="delta muted">Wasserstein {{ m.sentiment.wasserstein|floatformat:3 }} · KS {{ m.sentiment.ks|floatformat:2 }}</div></div>
+      <div class="stat"><div class="label">Stance JSD</div><div class="value">{{ m.stance_jsd|floatformat:3|default:"n/a" }}</div><div class="delta muted">{% if m.stance %}means {{ m.stance.mean_real|signed }} real vs {{ m.stance.mean_sim|signed }} simulated{% else %}needs AI-labelled real posts{% endif %}</div></div>
+      <div class="stat"><div class="label">Shared vocabulary</div><div class="value">{{ m.vocabulary_overlap|pct }}</div><div class="delta muted">{{ m.n_real }} real vs {{ m.n_sim }} simulated posts</div></div>
+    </div>
+    {{ m|json_script:r.pk }}
+    <div class="grid-2"><div class="chart-box" data-validation="{{ r.pk }}" data-kind="sentiment"></div><div class="chart-box" data-validation="{{ r.pk }}" data-kind="emotion"></div></div>
+    {% if m.shared_terms %}<p class="small mb-0"><strong>Shared terms:</strong> {{ m.shared_terms|join:", " }}</p>{% endif %}
+    {% endif %}
+  </div>
+</section>
+{% endwith %}
+{% empty %}
+<div class="empty-state">{% icon "badge-check" %}<h3>Not validated yet</h3><p>Validation tells you whether simulated discourse looks like the real thing. It is the basis for trusting the numbers.</p></div>
+{% endfor %}
+{% endblock %}
+{% block scripts %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll("[data-validation]").forEach(function (el) {
+      var m = Baraza.readJSON(el.getAttribute("data-validation"));
+      if (!m) return;
+      if (el.getAttribute("data-kind") === "sentiment" && m.sentiment) {
+        var labels = []; for (var i = 0; i < 10; i++) { var lo = -1 + i * 0.2; labels.push(lo.toFixed(1)); }
+        Baraza.bars(el, labels, [{ label: "Real posts", data: m.sentiment.hist_real, color: "--stance-neutral" }, { label: "Simulated posts", data: m.sentiment.hist_sim, color: "--color-accent" }], { percent: true });
+      } else if (m.emotion) {
+        Baraza.bars(el, m.emotion.labels, [{ label: "Real posts", data: m.emotion.real, color: "--stance-neutral" }, { label: "Simulated posts", data: m.emotion.sim, color: "--color-accent" }], { percent: true });
+      }
+    });
+  });
+</script>
+{% endblock %}

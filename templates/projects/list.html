@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% load baraza %}
+{% block title %}Projects{% endblock %}
+{% block content %}
+<div class="container" style="padding: var(--space-6) var(--space-4) var(--space-8)">
+  <div class="page-head">
+    <div><p class="eyebrow">Your work</p><h1>Projects</h1></div>
+    <a class="btn btn-primary" href="{% url 'core:home' %}">{% icon "plus" %}New rehearsal</a>
+  </div>
+  {% if projects %}
+    <div class="grid-3">{% for p in projects %}{% include "projects/partials/project_card.html" with p=p %}{% endfor %}</div>
+  {% else %}
+    <div class="empty-state">{% icon "layers" %}<h3>No projects yet</h3><p>Start from the home page by describing a policy or picking a scenario.</p><a class="btn btn-primary" href="{% url 'core:home' %}">{% icon "plus" %}Start a rehearsal</a></div>
+  {% endif %}
+</div>
+{% endblock %}

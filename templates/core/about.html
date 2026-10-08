@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% load baraza %}
+{% block title %}How it works{% endblock %}
+{% block content %}
+<div class="container" style="padding: var(--space-6) var(--space-4) var(--space-8)">
+  <div class="page-head"><div class="stack-sm"><p class="eyebrow">Methodology</p><h1>How Baraza works</h1><p class="muted mb-0">A <em>baraza</em> is a public gathering where a community debates what affects it. Baraza recreates that debate with AI agents so you can listen before you act.</p></div></div>
+  <div class="grid-2" style="align-items:start">
+    <nav class="card" aria-label="On this page" style="position:sticky; top: calc(var(--header-h) + 16px)"><div class="card-body"><ol class="list-plain small stack-sm">
+      <li><a href="#pipeline">1. The pipeline</a></li><li><a href="#model">2. The opinion model</a></li><li><a href="#llm">3. Where AI is used</a></li><li><a href="#cost">4. Cost: running it for free</a></li><li><a href="#trust">5. How far to trust the results</a></li><li><a href="#ethics">6. Ethics and safeguards</a></li><li><a href="#research">7. For researchers</a></li>
+    </ol></div></nav>
+    <article class="prose">
+      <h2 id="pipeline">1. The pipeline</h2>
+      <ol>
+        <li><strong>Prompt architect.</strong> Your prompt is restructured into a brief: the concrete measures, the proposer, who is affected and how (direction and intensity), stakeholders, search queries (including Swahili where relevant), hashtags and testable hypotheses. You can edit everything.</li>
+        <li><strong>Deep research.</strong> Free sources first: web and news search, Google News country editions, the GDELT news index, Wikipedia, Reddit, YouTube comments, public Telegram channels, and public posts on X, Facebook, LinkedIn, TikTok and Instagram as indexed by search engines. Paid, low-cost providers can be added. Articles are read in full (respecting robots.txt), ranked by relevance, and public posts are labelled for stance.</li>
+        <li><strong>GraphRAG knowledge base.</strong> Evidence is chunked; a language model extracts actors, relationships, arguments for and against, facts and rumours. Actors are merged (e.g. “Kenya Revenue Authority” = “KRA”), ranked by PageRank and grouped with Louvain community detection. A neutral dossier and an argument bank are written from it.</li>
+        <li><strong>Synthetic population.</strong> Citizens are sampled from country demographics (all 47 Kenyan counties from the 2019 census; regional data for Nigeria, South Africa, Ghana, Uganda, Tanzania, Rwanda and Ethiopia) and from archetypes such as boda boda riders, market vendors, students, farmers and civil servants. Each gets Big Five personality traits, platform habits, a political leaning and a starting opinion derived from how the research says their segment is affected, optionally calibrated to the stance seen in real posts. Institutions and media from the knowledge graph become accounts. A homophilous follow network and WhatsApp-style groups (family, neighbours, savings groups, faith, work) connect them.</li>
+        <li><strong>Simulation.</strong> In each round (a few simulated hours) agents wake up according to their activity, the time of day and how heated the topic is; read a ranked feed on an X-style microblog, a Facebook/Reddit-style forum or their group chats; update their opinions and emotions; react; and may reply or post. Scheduled events (announcements, concessions, rumours, fact-checks, influencer campaigns, live real-world headlines) let you rehearse responses.</li>
+        <li><strong>Insights.</strong> Trajectories, segment shifts, polarisation and echo-chamber indices, which arguments persuaded or backfired, influential accounts, a written report, interviews with agents, virtual polls, validation against real posts, scenario comparison and Monte Carlo ensembles.</li>
+      </ol>
+
+      <h2 id="model">2. The opinion model</h2>
+      <p>Each person's opinion is a number between -1 (strongly against) and +1 (strongly for). When person <em>i</em> reads a post with stance <em>s</em>, with <em>d = s - x<sub>i</sub></em>:</p>
+      <ul>
+        <li><strong>Assimilation</strong> if |d| is within their latitude of acceptance ε<sub>i</sub>: x<sub>i</sub> ← x<sub>i</sub> + w·d (plus group polarisation: aligned, emotional content pushes aroused readers further toward their pole).</li>
+        <li><strong>Backfire</strong> if |d| exceeds their latitude of rejection ρ<sub>i</sub>: they move <em>away</em> from the post.</li>
+        <li><strong>Weak assimilation</strong> in between (social judgement theory; Jager &amp; Amblard, 2005).</li>
+      </ul>
+      <p>The weight <em>w</em> grows with the author's credibility, whether the reader follows them, closeness of the tie (family groups count more), likes and reposts (social proof), the strength of the argument and how much the reader cares; it shrinks for rumours in proportion to the reader's conscientiousness. Openness widens ε, agreeableness delays ρ, conscientiousness increases stubbornness. Every round, opinions are anchored toward each person's initial view (Friedkin &amp; Johnsen, 1990) and receive small random noise. Emotional arousal spreads by contagion and decays. Fact-checks partially undo what misinformation did, but never completely (the continued-influence effect).</p>
+      <p>Feeds rank posts by recency, engagement, follow ties and an <strong>echo-chamber parameter</strong> that favours like-minded content. Reactions (like, downvote, repost, forward, follow, mute) and decisions to post follow logistic models of personality and emotion. Text never changes the maths: the engine decides who says what with which stance and argument; the language model only puts it into words. This keeps results reproducible and makes AI-written and template runs comparable.</p>
+
+      <h2 id="llm">3. Where AI is used</h2>
+      <ul>
+        <li>Writing the brief, extracting knowledge, writing the dossier, estimating how segments feel, writing personas, labelling the stance of real posts, the report, interviews and polls (the “smart” tier).</li>
+        <li>Writing a limited number of the most visible posts per round, in character (the “fast” tier). Each call re-injects the full persona and current opinion to prevent identity drift. All other posts are written from the argument bank instantly.</li>
+        <li>Every AI step has a transparent fallback, so the whole system still works with no AI at all.</li>
+      </ul>
+
+      <h2 id="cost">4. Cost: running it for free</h2>
+      <ul>
+        <li><strong>KES 0:</strong> Ollama with <code>llama3</code> on your own computer, SQLite, and free data sources. A standard run makes roughly 150-250 AI calls.</li>
+        <li><strong>Almost free, better writing:</strong> keep agents on local Llama 3 and send only the brief, dossier and report to a free hosted tier (e.g. Groq or OpenRouter free models) with “hybrid smart tier”.</li>
+        <li><strong>Lowest-cost paid data:</strong> YouTube Data API (free quota), Apify (free monthly credit), twitterapi.io (pay-as-you-go) for X, Tavily/Brave/Serper free tiers for search.</li>
+        <li>Identical AI requests are cached, and the per-round AI budget is configurable.</li>
+      </ul>
+
+      <h2 id="trust">5. How far to trust the results</h2>
+      <p>Baraza explores <em>plausible dynamics</em>; it does not predict what specific real people will do and it is not a poll. Treat directions and relative effects (“a concession on bread reduces opposition more than an official explanation”) as more reliable than exact percentages. Confidence improves when you: collect more real posts, calibrate the population, validate simulated discourse against real posts, run Monte Carlo ensembles to see the spread of outcomes, and check key findings with a real survey or focus group.</p>
+      <p>Known limitations: synthetic populations simplify real people; online discourse over-represents young, urban and connected people; small local models write less nuanced text; data coverage differs by platform and country; and opinion-dynamics parameters are estimates you can tune.</p>
+
+      <h2 id="ethics">6. Ethics and safeguards</h2>
+      <ul>
+        <li><strong>Synthetic people only.</strong> Agents are invented. Real public figures are represented through their institutions, not impersonated.</li>
+        <li><strong>No ethnicity.</strong> The population is not assigned ethnic identities, to avoid reproducing harmful political stereotypes.</li>
+        <li><strong>No posting to real platforms.</strong> Baraza cannot publish anything. Exports are labelled as simulated.</li>
+        <li><strong>No AI-written disinformation.</strong> Rumours and coordinated-account posts come only from templates or your own text, never from the language model.</li>
+        <li><strong>Data protection.</strong> Authors of collected public posts are anonymised by default, robots.txt is respected, and everything stays on your machine unless you add a cloud model. Follow Kenya's Data Protection Act (2019) and your institution's ethics approval.</li>
+        <li><strong>Purpose.</strong> Requests to incite violence or hatred, or to target individuals, are refused. Use Baraza to listen, prepare, explain and improve policies, not to manipulate.</li>
+      </ul>
+
+      <h2 id="research">7. For researchers</h2>
+      <p>Every run is reproducible from its random seed. Export posts, agents and per-round metrics as CSV; use Monte Carlo ensembles and parameter sweeps (echo-chamber strength, influence, backfire, group polarisation, anchoring, share of coordinated accounts) for confidence intervals; and validate with Jensen-Shannon divergence, Wasserstein distance and KS statistics against real or historical data. See <code>docs/</code> in the repository for the full method, data-source guide and ethics notes.</p>
+    </article>
+  </div>
+</div>
+{% endblock %}

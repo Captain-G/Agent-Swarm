@@ -1,0 +1,158 @@
+{% extends "projects/workspace.html" %}
+{% load baraza %}
+{% block title %}Simulate · {{ project.title }}{% endblock %}
+{% block workspace %}
+<div class="page-head">
+  <div class="stack-sm">
+    <p class="eyebrow">Step 5 · Simulate</p>
+    <h1>Run the swarm</h1>
+    <p class="muted mb-0">Agents read their feeds, react, argue and change their minds over simulated days. Schedule announcements, concessions, rumours or fact-checks to rehearse your response.</p>
+  </div>
+</div>
+
+{% if not has_population %}
+<div class="empty-state">{% icon "users" %}<h3>No population yet</h3><p>Create the synthetic population first.</p><a class="btn btn-primary" href="{% url 'swarm:population' project.pk %}">{% icon "users" %}Create population</a></div>
+{% else %}
+{% if job %}{% include "core/partials/job_status.html" with job=job %}{% endif %}
+
+<section class="card" aria-labelledby="new-run-title">
+  <div class="card-header"><h2 id="new-run-title">{% icon "circle-play" %} New simulation</h2></div>
+  <form method="post" action="{% url 'swarm:run_create' project.pk %}" class="card-body stack" x-data="runForm()">
+    {% csrf_token %}
+    <input type="hidden" name="interventions" :value="JSON.stringify(items)">
+    <input type="hidden" name="advanced" :value="advanced ? '1' : '0'">
+    <div class="grid-2">
+      <div class="field"><label for="run-name">Name</label><input id="run-name" name="name" placeholder="e.g. Baseline, or 'With concession on bread'" required></div>
+      <div class="field"><label for="baseline">Compare against <span class="muted">(optional)</span></label><select id="baseline" name="baseline"><option value="">No baseline</option>{% for r in runs %}{% if r.status == 'completed' %}<option value="{{ r.pk }}">{{ r.name }}</option>{% endif %}{% endfor %}</select></div>
+    </div>
+    <fieldset><legend>How thorough?</legend>
+      <div class="choice-grid">
+        {% for key, p in presets.items %}
+        <label class="choice"><input type="radio" name="preset" value="{{ key }}" {% if key == 'standard' %}checked{% endif %} x-model="preset"><span><strong>{{ p.label }}</strong><span class="tiny muted" style="display:block">{{ p.help }}</span></span></label>
+        {% endfor %}
+      </div>
+      {% if not has_arguments %}<p class="help">Tip: build the knowledge base first so agents argue with real arguments.</p>{% endif %}
+    </fieldset>
+
+    <fieldset>
+      <legend>Scheduled events (optional)</legend>
+      <p class="help">Rehearse what happens if something is announced, conceded, rumoured or fact-checked at a given point. Round 1 is the start; each round is a few hours.</p>
+      <template x-for="(it, i) in items" :key="i">
+        <div class="card" style="margin-bottom: var(--space-3)"><div class="card-body grid-3">
+          <div class="field"><label :for="'iv-kind-'+i">What</label><select :id="'iv-kind-'+i" x-model="it.kind">{% for v, l in intervention_kinds %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></div>
+          <div class="field"><label :for="'iv-round-'+i">At round</label><input type="number" min="1" :id="'iv-round-'+i" x-model.number="it.round"></div>
+          <div class="field"><label :for="'iv-dur-'+i">Lasts (rounds)</label><input type="number" min="1" :id="'iv-dur-'+i" x-model.number="it.duration"></div>
+          <div class="field span-2" x-show="it.kind !== 'web_refresh'"><label :for="'iv-content-'+i">Message or news</label><textarea rows="2" :id="'iv-content-'+i" x-model="it.content" placeholder="e.g. The Treasury clarifies that bread will remain VAT-exempt."></textarea></div>
+          <div class="field" x-show="it.kind === 'web_refresh'"><p class="help">Fetches today's real headlines about this topic and injects them as news (needs internet).</p></div>
+          <div class="field"><label :for="'iv-actor-'+i">Posted by</label><select :id="'iv-actor-'+i" x-model="it.actor"><option value="">Automatic</option>{% for handle, name in institutions %}<option value="{{ handle }}">{{ name }}</option>{% endfor %}</select></div>
+          <div class="field"><label :for="'iv-stance-'+i">Position of the message</label><div class="range-row"><input type="range" min="-1" max="1" step="0.1" :id="'iv-stance-'+i" x-model.number="it.stance"><output x-text="Number(it.stance).toFixed(1)"></output></div><p class="help">-1 against the policy · +1 for it. Moderate messages persuade more than extreme ones.</p></div>
+          <div class="field"><label :for="'iv-str-'+i">Strength</label><div class="range-row"><input type="range" min="0" max="1" step="0.1" :id="'iv-str-'+i" x-model.number="it.strength"><output x-text="Number(it.strength).toFixed(1)"></output></div></div>
+          <div class="field" x-show="it.kind === 'policy_change'"><label :for="'iv-seg-'+i">Who is affected</label><input :id="'iv-seg-'+i" x-model="it.target_segments" placeholder="all, or segment keys / regions"><p class="help">e.g. <code>all</code>, <code>market_vendor, boda_rider</code>, or a region.</p></div>
+          <div><button type="button" class="btn btn-danger btn-sm" @click="items.splice(i,1)">{% icon "trash-2" %}Remove</button></div>
+        </div></div>
+      </template>
+      <div class="cluster-sm">
+        <button type="button" class="btn btn-sm" @click="add('official_statement', 'The government clarifies the policy and explains how the money will be used.', 0.4)">{% icon "megaphone" %}Official statement</button>
+        <button type="button" class="btn btn-sm" @click="add('policy_change', 'The most criticised measure is dropped.', 0.6)">{% icon "scale" %}Concession</button>
+        <button type="button" class="btn btn-sm" @click="add('misinformation', '', -0.9)">{% icon "shield-alert" %}Rumour</button>
+        <button type="button" class="btn btn-sm" @click="add('fact_check', '', 0.3)">{% icon "badge-check" %}Fact-check</button>
+        <button type="button" class="btn btn-sm" @click="add('influencer_campaign', 'Influencers explain the benefits.', 0.6)">{% icon "radio" %}Influencer campaign</button>
+        <button type="button" class="btn btn-sm" @click="add('breaking_news', '', 0)">{% icon "newspaper" %}Breaking news</button>
+        <button type="button" class="btn btn-sm" @click="add('web_refresh', '', 0)">{% icon "globe" %}Live web news</button>
+      </div>
+    </fieldset>
+
+    <details class="disclosure" @toggle="advanced = $event.target.open">
+      <summary>{% icon "sliders-horizontal" %}Advanced settings (for researchers)</summary>
+      <div class="disclosure-body stack">
+        <div class="grid-3">
+          <div class="field"><label for="rounds">Rounds</label><input id="rounds" type="number" name="rounds" min="1" max="500" value="{{ defaults.rounds }}"></div>
+          <div class="field"><label for="step_hours">Hours per round</label><input id="step_hours" type="number" name="step_hours" min="0.5" max="168" step="0.5" value="{{ defaults.step_hours }}"></div>
+          <div class="field"><label for="llm_posts_per_round">AI-written posts per round</label><input id="llm_posts_per_round" type="number" name="llm_posts_per_round" min="0" max="100" value="{{ defaults.llm_posts_per_round }}"><p class="help">The rest are written from the argument bank instantly.</p></div>
+          <div class="field"><label for="mode">Text generation</label><select id="mode" name="mode"><option value="hybrid">AI for key posts + templates</option><option value="template">Templates only (free, instant)</option></select></div>
+          <div class="field"><label for="feed_size">Posts read per visit</label><input id="feed_size" type="number" name="feed_size" min="2" max="30" value="{{ defaults.feed_size }}"></div>
+          <div class="field"><label for="seed2">Random seed</label><input id="seed2" type="number" name="seed" value="{{ defaults.seed }}"></div>
+        </div>
+        <div class="grid-3">
+          <div class="field"><label for="echo">Echo-chamber feed strength</label><div class="range-row"><input id="echo" type="range" name="echo_chamber" min="0" max="1" step="0.05" value="{{ defaults.echo_chamber }}" data-output="echo-out"><output id="echo-out">{{ defaults.echo_chamber }}</output></div><p class="help">0 = chronological feed, 1 = strongly personalised.</p></div>
+          <div class="field"><label for="influence">Social influence</label><div class="range-row"><input id="influence" type="range" name="influence_scale" min="0" max="3" step="0.1" value="{{ defaults.influence_scale }}" data-output="inf-out"><output id="inf-out">{{ defaults.influence_scale }}</output></div></div>
+          <div class="field"><label for="backfire">Backfire effect</label><div class="range-row"><input id="backfire" type="range" name="backfire" min="0" max="1.5" step="0.1" value="{{ defaults.backfire }}" data-output="bf-out"><output id="bf-out">{{ defaults.backfire }}</output></div></div>
+          <div class="field"><label for="intensify">Group polarisation</label><div class="range-row"><input id="intensify" type="range" name="intensify" min="0" max="1.5" step="0.1" value="{{ defaults.intensify }}" data-output="int-out"><output id="int-out">{{ defaults.intensify }}</output></div></div>
+          <div class="field"><label for="anchoring">Anchoring to first opinion</label><div class="range-row"><input id="anchoring" type="range" name="anchoring" min="0" max="2" step="0.05" value="{{ defaults.anchoring }}" data-output="anc-out"><output id="anc-out">{{ defaults.anchoring }}</output></div></div>
+          <div class="field"><label for="activity">Overall activity</label><div class="range-row"><input id="activity" type="range" name="activity_scale" min="0.2" max="3" step="0.1" value="{{ defaults.activity_scale }}" data-output="act-out"><output id="act-out">{{ defaults.activity_scale }}</output></div></div>
+        </div>
+        <fieldset><legend>Platforms</legend><div class="cluster">
+          <label class="check"><input type="checkbox" name="platforms" value="microblog" checked><span>X-style microblog</span></label>
+          <label class="check"><input type="checkbox" name="platforms" value="forum" checked><span>Facebook/Reddit-style forum</span></label>
+          <label class="check"><input type="checkbox" name="platforms" value="chat" checked><span>WhatsApp-style group chats</span></label>
+        </div></fieldset>
+      </div>
+    </details>
+    <div class="field"><label for="description">Notes <span class="muted">(optional)</span></label><textarea id="description" name="description" rows="2" placeholder="What are you testing?"></textarea></div>
+    <div><button class="btn btn-primary btn-lg" type="submit" {% if job %}disabled{% endif %}>{% icon "play" %}Start simulation</button></div>
+  </form>
+</section>
+
+<section class="stack" aria-labelledby="runs-title">
+  <h2 id="runs-title">Runs</h2>
+  {% if runs %}
+  <div class="table-wrap"><table>
+    <thead><tr><th scope="col">Run</th><th scope="col">Status</th><th scope="col">Opinion</th><th scope="col" class="num">Posts</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+    <tbody>
+      {% for r in runs %}
+      <tr>
+        <td><a href="{% url 'swarm:run_detail' r.pk %}"><strong>{{ r.name }}</strong></a><div class="tiny muted">{{ r.created_at|date:"d M H:i" }} · {{ r.total_rounds }} rounds · {{ r.config.mode }}{% if r.interventions.count %} · {{ r.interventions.count }} event{{ r.interventions.count|pluralize }}{% endif %}</div></td>
+        <td><span class="badge {% if r.status == 'completed' %}badge-success{% elif r.status == 'failed' %}badge-danger{% elif r.is_active %}badge-info{% else %}badge-warning{% endif %}">{{ r.get_status_display }}</span>{% if r.is_active %}<div class="tiny muted">{{ r.progress }}%</div>{% endif %}</td>
+        <td>{% if r.summary.end_mean is not None %}{{ r.summary.start_mean|signed }} → <strong>{{ r.summary.end_mean|signed }}</strong><div class="tiny muted">oppose {{ r.summary.end_oppose|pct }} · support {{ r.summary.end_support|pct }}</div>{% else %}<span class="muted">-</span>{% endif %}</td>
+        <td class="num">{{ r.summary.total_posts|default:"-" }}</td>
+        <td><div class="cluster-sm">{% if r.status == 'completed' %}<a class="btn btn-sm" href="{% url 'insights:run' r.pk %}">{% icon "chart-line" %}Insights</a>{% endif %}<a class="btn btn-sm btn-ghost" href="{% url 'swarm:run_detail' r.pk %}">Open</a></div></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% if runs|length > 1 %}<a class="btn" href="{% url 'insights:compare' project.pk %}">{% icon "git-compare-arrows" %}Compare two runs</a>{% endif %}
+  {% else %}
+  <p class="muted">No runs yet.</p>
+  {% endif %}
+</section>
+
+<section class="card" aria-labelledby="exp-title">
+  <div class="card-header"><h2 id="exp-title">{% icon "flask-conical" %} Experiments: how sure can we be?</h2></div>
+  <div class="card-body stack">
+    <p class="small muted mb-0">One run is one possible future. Experiments re-run the opinion dynamics many times with different random seeds (no AI text, seconds per run) to give confidence bands, or vary one setting to measure its effect.</p>
+    <div class="grid-2">
+      <form method="post" action="{% url 'swarm:experiment_create' project.pk %}" class="stack-sm">{% csrf_token %}<input type="hidden" name="kind" value="ensemble">
+        <h3>Monte Carlo ensemble</h3>
+        <div class="field"><label for="ens-run">Scenario</label><select id="ens-run" name="run_id"><option value="">Baseline (no events)</option>{% for r in runs %}<option value="{{ r.pk }}">{{ r.name }}{% if r.interventions.count %} (with {{ r.interventions.count }} event{{ r.interventions.count|pluralize }}){% endif %}</option>{% endfor %}</select></div>
+        <div class="field"><label for="ens-runs">Number of runs</label><input id="ens-runs" type="number" name="runs" min="3" max="500" value="40"></div>
+        <button class="btn" type="submit">{% icon "flask-conical" %}Run ensemble</button>
+      </form>
+      <form method="post" action="{% url 'swarm:experiment_create' project.pk %}" class="stack-sm">{% csrf_token %}<input type="hidden" name="kind" value="sweep">
+        <h3>Parameter sweep</h3>
+        <div class="field"><label for="sw-param">Vary</label><select id="sw-param" name="parameter">{% for key, v in sweepable.items %}<option value="{{ key }}">{{ v.0 }}</option>{% endfor %}</select></div>
+        <div class="field"><label for="sw-runs">Total runs</label><input id="sw-runs" type="number" name="runs" min="6" max="1000" value="60"></div>
+        <button class="btn" type="submit">{% icon "sliders-horizontal" %}Run sweep</button>
+      </form>
+    </div>
+    {% if experiments %}
+    <ul class="list-plain divider-list">{% for e in experiments %}<li class="spread"><a href="{% url 'swarm:experiment' e.pk %}">{{ e.name }}</a><span class="cluster-sm"><span class="tiny muted">{{ e.created_at|date:"d M H:i" }}</span><span class="badge {% if e.status == 'completed' %}badge-success{% else %}badge-info{% endif %}">{{ e.status }}</span></span></li>{% endfor %}</ul>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+  function runForm() {
+    return {
+      preset: "standard",
+      advanced: false,
+      items: [],
+      add: function (kind, content, stance) {
+        var last = this.items.length ? this.items[this.items.length - 1].round : 3;
+        this.items.push({ kind: kind, round: last + 3, duration: kind === "influencer_campaign" ? 6 : 2, content: content, actor: "", stance: stance, strength: 0.8, target_segments: "all" });
+      }
+    };
+  }
+</script>
+{% endblock %}

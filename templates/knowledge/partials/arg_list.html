@@ -1,0 +1,14 @@
+{% load baraza %}
+<ul class="list-plain divider-list">
+  {% for a in items %}
+  <li>
+    <p class="mb-0">{{ a.claim }}</p>
+    <div class="spread" style="margin-top:4px">
+      <span class="tiny muted">{% if a.frequency > 1 %}Seen {{ a.frequency }}× · {% endif %}{{ a.emotion }} · strength {{ a.strength|floatformat:1 }}{% if a.rationale %} · {{ a.rationale|truncatechars:60 }}{% endif %}</span>
+      <form method="post" action="{% url 'knowledge:delete_argument' a.project_id a.pk %}">{% csrf_token %}<button class="btn btn-ghost btn-icon btn-sm" type="submit" aria-label="Remove this argument">{% icon "trash-2" %}</button></form>
+    </div>
+  </li>
+  {% empty %}
+  <li class="muted small">None found.</li>
+  {% endfor %}
+</ul>

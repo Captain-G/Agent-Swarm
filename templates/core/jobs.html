@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% load baraza %}
+{% block title %}Background tasks{% endblock %}
+{% block content %}
+<div class="container stack" style="padding: var(--space-6) var(--space-4) var(--space-8)">
+  <div class="page-head"><div class="stack-sm"><p class="eyebrow">System</p><h1>Background tasks</h1><p class="muted mb-0">Research, simulations and reports run in the background. You can leave a page and come back.</p></div></div>
+  {% for job in jobs %}
+    {% if job.is_active %}{% include "core/partials/job_status.html" with job=job %}{% endif %}
+  {% endfor %}
+  <div class="table-wrap"><table>
+    <thead><tr><th scope="col">Task</th><th scope="col">Project</th><th scope="col">Status</th><th scope="col">Started</th><th scope="col" class="num">Duration</th></tr></thead>
+    <tbody>{% for job in jobs %}<tr><td><strong class="small">{{ job.label }}</strong>{% if job.error %}<details><summary class="tiny">Error</summary><pre class="tiny" style="white-space:pre-wrap">{{ job.error|truncatechars:3000 }}</pre></details>{% endif %}</td><td class="small">{% if job.project %}<a href="{% url 'projects:overview' job.project_id %}">{{ job.project.title|truncatechars:40 }}</a>{% endif %}</td><td><span class="badge {% if job.status == 'succeeded' %}badge-success{% elif job.status == 'failed' %}badge-danger{% elif job.is_active %}badge-info{% else %}badge-warning{% endif %}">{{ job.get_status_display }}</span></td><td class="small">{{ job.created_at|date:"d M H:i" }}</td><td class="num small">{{ job.duration_seconds|duration }}</td></tr>{% empty %}<tr><td colspan="5" class="muted">No tasks yet.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</div>
+{% endblock %}

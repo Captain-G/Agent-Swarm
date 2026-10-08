@@ -1,0 +1,14 @@
+{% load baraza %}
+<div class="modal-head"><h2 id="modal-title" class="mb-0" style="font-size:1.15rem">{{ s.title|truncatechars:120 }}</h2><button class="btn btn-ghost btn-icon" type="button" onclick="Baraza.closeModal()" aria-label="Close">{% icon "x" %}</button></div>
+<div class="modal-body stack">
+  <div class="cluster-sm"><span class="badge">{{ s.get_platform_display }}</span><span class="badge badge-outline">{{ s.get_kind_display }}</span>{% if s.stance is not None %}{% stance_badge s.stance %}{% endif %}{% if s.published_at %}<span class="small muted">{{ s.published_at|date:"d M Y H:i" }}</span>{% endif %}</div>
+  <dl class="kv small">
+    {% if s.author %}<dt>Author</dt><dd>{{ s.author }}</dd>{% endif %}
+    <dt>Found by</dt><dd>{{ s.connector }}{% if s.query %} · “{{ s.query }}”{% endif %}</dd>
+    <dt>Sentiment</dt><dd>{{ s.sentiment|signed }}</dd>
+    <dt>Relevance</dt><dd>{{ s.relevance|pct }}</dd>
+    {% if s.metrics %}<dt>Engagement</dt><dd>{% for k, v in s.metrics.items %}{{ k }} {{ v }}{% if not forloop.last %} · {% endif %}{% endfor %}</dd>{% endif %}
+  </dl>
+  {% if s.url %}<p class="mb-0"><a href="{{ s.url }}" target="_blank" rel="noopener noreferrer nofollow">{% icon "external-link" %} Open original</a></p>{% endif %}
+  <div class="prose small" style="max-height:50vh; overflow:auto; white-space:pre-wrap">{{ s.body|truncatechars:8000 }}</div>
+</div>

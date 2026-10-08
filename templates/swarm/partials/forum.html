@@ -1,0 +1,16 @@
+{% load baraza %}
+{% for t in threads %}
+<article class="thread" aria-label="Thread: {{ t.title|default:t.text|truncatechars:60 }}">
+  <div class="cluster-sm small"><span class="avatar avatar-sm is-{{ t.stance|stance_class }}" aria-hidden="true">{{ t.author.name|initials }}</span><strong>{{ t.author.name }}</strong><span class="muted">@{{ t.author.handle }} · {{ t.sim_time|date:"D H:i" }}</span>{% if t.source == 'intervention' %}<span class="badge badge-warning">Event</span>{% endif %}{% if t.is_misinfo %}<span class="badge badge-danger">Rumour</span>{% endif %}</div>
+  <h4 style="margin-top:8px">{{ t.title|default:t.text|truncatechars:120 }}</h4>
+  <p class="mb-0">{{ t.text|social_text }}</p>
+  <div class="post-meta" style="margin-top:6px"><span>{% icon "thumbs-down" %}{{ t.dislikes }}</span><span>{% icon "heart" %}{{ t.likes }}</span><span>{% icon "message-circle" %}{{ t.replies }} comments</span>{% stance_badge t.stance %}</div>
+  {% if t.comment_list %}
+  <div class="comments">
+    {% for p in t.comment_list %}{% include "swarm/partials/post.html" %}{% endfor %}
+  </div>
+  {% endif %}
+</article>
+{% empty %}
+<div class="empty-state">{% icon "messages-square" %}<h3>No forum threads yet</h3></div>
+{% endfor %}

@@ -1,0 +1,13 @@
+{% load baraza %}
+<div class="alert {% if info.ok %}alert-success{% else %}alert-danger{% endif %}" role="status">
+  {% if info.ok %}{% icon "circle-check" %}{% else %}{% icon "circle-x" %}{% endif %}
+  <div class="stack-sm">
+    <p class="mb-0"><strong>{% if info.ok %}Connected.{% else %}Not connected.{% endif %}</strong> {{ info.detail }}</p>
+    <p class="mb-0 small">Brief, dossier and report: <code>{{ describe.smart }}</code> · Agent posts: <code>{{ describe.fast }}</code> · Embeddings: {% if embed_ok %}<span class="badge badge-success">available</span>{% else %}<span class="badge">keyword search fallback</span>{% endif %}</p>
+    {% if sample %}<p class="mb-0 small">Sample reply: “{{ sample }}”</p>{% endif %}
+    {% if info.models %}<details><summary class="small">Installed models ({{ info.models|length }})</summary><ul class="small">{% for m in info.models %}<li><code>{{ m.name }}</code>{% if m.parameters %} · {{ m.parameters }}{% endif %}{% if m.size_gb %} · {{ m.size_gb }} GB{% endif %}</li>{% endfor %}</ul></details>{% endif %}
+    {% if not info.ok and info.provider == 'ollama' %}
+      <p class="mb-0 small">Start Ollama (<code>ollama serve</code> or open the Ollama app), then run <code>ollama pull {{ info.model|default:'llama3' }}</code>. If Baraza runs in Docker, use <code>http://host.docker.internal:11434</code> as the address.</p>
+    {% endif %}
+  </div>
+</div>
